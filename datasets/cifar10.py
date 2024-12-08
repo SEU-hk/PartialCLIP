@@ -5,8 +5,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
-class IMBALANCECIFAR100(torchvision.datasets.CIFAR100):
-    cls_num = 100
+class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+    cls_num = 10
 
     def __init__(self, root, imb_factor=None, rand_number=0, train=True,
                  transform=None, target_transform=None, download=True):
@@ -58,30 +58,30 @@ class IMBALANCECIFAR100(torchvision.datasets.CIFAR100):
         return cls_num_list
 
 
-class CIFAR100(IMBALANCECIFAR100):
+class CIFAR10(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=None, train=train, transform=transform)
 
 
-class CIFAR100_IR10(IMBALANCECIFAR100):
+class CIFAR10_IR10(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=0.1, train=train, transform=transform)
 
-class CIFAR100_IR20(IMBALANCECIFAR100):
+class CIFAR10_IR20(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=0.05, train=train, transform=transform)
         
-class CIFAR100_IR50(IMBALANCECIFAR100):
+class CIFAR10_IR50(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=0.02, train=train, transform=transform)
 
 
-class CIFAR100_IR100(IMBALANCECIFAR100):
+class CIFAR10_IR100(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=0.01, train=train, transform=transform)
         
 
-class CIFAR100_IR150(IMBALANCECIFAR100):
+class CIFAR10_IR150(IMBALANCECIFAR10):
     def __init__(self, root, train=True, transform=None):
         super().__init__(root, imb_factor=0.0067, train=train, transform=transform)     
 
