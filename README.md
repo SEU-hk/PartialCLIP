@@ -1,4 +1,4 @@
-# Long-Tail Learning with Foundation Model: Heavy Fine-Tuning Hurts
+# UPB: A-Unified-Partial-label-learning-Benchmark
 
 This is the source code for the paper: [Long-Tail Learning with Foundation Model: Heavy Fine-Tuning Hurts](https://arxiv.org/abs/2309.10019) (ICML 2024).
 
