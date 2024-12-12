@@ -518,18 +518,30 @@ class Trainer:
         for epoch_idx in range(num_epochs):
             self.tuner.train()
             self.algorithm.train()
-            end = time.time()
+            start = time.time()
 
             num_batches = len(self.train_loader)
             
             train_minibatches_iterator = iter(self.train_loader)
-            minibatches_device = [item.to(self.device) for item in next(train_minibatches_iterator)]
-            loss = self.algorithm.update(minibatches_device)
-                 
-            torch.cuda.empty_cache()
+            with tqdm(total=num_batches, desc="Training", unit="batch") as pbar:
+                for batch in train_minibatches_iterator:
+                    batch_device = [item.to(self.device) for item in batch]
+                    loss = self.algorithm.update(batch_device)
+                    # loss_meter.update(loss.item())
+                    # batch_time.update(time.time() - start)
+                    # print(f"time {batch_time.val:.3f} ({batch_time.avg:.3f})")
+                    # print(f"loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})")
+                    pbar.update(1)
             
+            end = time.time()
+            print(f"Epoch time: {end - start}")  
+              
+            # minibatches_device = [item.to(self.device) for item in next(train_minibatches_iterator)]
+            # loss = self.algorithm.update(minibatches_device)
             # print(f'Epoch: {epoch_idx}')
-            # self.test()
+            # self.test()  
+                           
+        torch.cuda.empty_cache()
 
         print("Finish training")
         print("Note that the printed training acc is not precise.",
