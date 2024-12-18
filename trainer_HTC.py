@@ -36,6 +36,7 @@ from utils.losses import *
 from utils.pll_loss import *
 from utils.evaluator import Evaluator, compute_accuracy
 from utils.templates import ZEROSHOT_TEMPLATES
+from utils.visual import *
 from utils.algorithms import *
 # from LIFT2.utils import algorithms
 
@@ -301,19 +302,11 @@ class Trainer:
         elif cfg.backbone.startswith("CLIP"):
             print(f"Loading CLIP (backbone: {cfg.backbone})")
             clip_model = load_clip_to_cpu(cfg.backbone, cfg.prec)
-            
-            if cfg['loss_type'] in ["DIRK", "ABLE", "PiCO"]:
-                self.model = PeftModelFromCLIP_MLP(cfg, clip_model, num_classes)
-                self.model.to(self.device)
-                self.tuner = self.model.tuner
-                self.neck = self.model.neck
-                self.head = self.model.head
-            
-            else:
-                self.model = PeftModelFromCLIP(cfg, clip_model, num_classes)
-                self.model.to(self.device)
-                self.tuner = self.model.tuner
-                self.head = self.model.head
+            self.model = PeftModelFromCLIP_HTC(cfg, clip_model, num_classes)
+            self.model.to(self.device)
+            self.tuner = self.model.tuner
+            self.head1 = self.model.head1
+            self.head = self.model.head
 
 
         elif cfg.backbone.startswith("IN21K-ViT"):
@@ -358,20 +351,26 @@ class Trainer:
         print("Turning on gradients in the head")
         for name, param in self.head.named_parameters():
             param.requires_grad_(True)
+        print("Turning on gradients in the head1")
+        for name, param in self.head1.named_parameters():
+            param.requires_grad_(True)
 
         # print parameters
         total_params = sum(p.numel() for p in self.model.parameters())
         tuned_params = sum(p.numel() for p in self.tuner.parameters())
         head_params = sum(p.numel() for p in self.head.parameters())
+        head1_params = sum(p.numel() for p in self.head1.parameters())
         print(f"Total params: {total_params}")
         print(f"Tuned params: {tuned_params}")
         print(f"Head params: {head_params}")
+        print(f"Head1 params: {head_params}")
         # for name, param in self.tuner.named_parameters():
         #     print(name, param.numel())
 
         # NOTE: only give tuner and head to the optimizer
         self.optim = torch.optim.SGD([{"params": self.tuner.parameters()},
-                                      {"params": self.head.parameters()}],
+                                      {"params": self.head.parameters()},
+                                      {"params": self.head1.parameters()}],
                                       lr=cfg.lr, weight_decay=cfg.weight_decay, momentum=cfg.momentum)
         self.sched = torch.optim.lr_scheduler.CosineAnnealingLR(self.optim, cfg.num_epochs)
         self.scaler = GradScaler() if cfg.prec == "amp" else None
@@ -445,6 +444,7 @@ class Trainer:
             text_features = text_features @ self.model.image_encoder.proj.t()
             text_features = F.normalize(text_features, dim=-1)
 
+        self.head1.apply_weight(text_features)
         self.head.apply_weight(text_features)
 
 
@@ -483,6 +483,7 @@ class Trainer:
         class_means = torch.cat(class_means, dim=0)
         class_means = F.normalize(class_means, dim=-1)
 
+        self.head1.apply_weight(class_means)
         self.head.apply_weight(class_means)
 
     @torch.no_grad()
@@ -510,8 +511,9 @@ class Trainer:
         class_weights = torch.from_numpy(clf.coef_).to(all_features.dtype).to(self.device)
         class_weights = F.normalize(class_weights, dim=-1)
 
+        self.head1.apply_weight(class_weights)
         self.head.apply_weight(class_weights)
-            
+   
             
     def train(self):
         cfg = self.cfg
@@ -521,13 +523,6 @@ class Trainer:
         os.makedirs(writer_dir, exist_ok=True)
         print(f"Initialize tensorboard (log_dir={writer_dir})")
         self._writer = SummaryWriter(log_dir=writer_dir)
-
-        # Initialize average meters
-        batch_time = AverageMeter()
-        data_time = AverageMeter()
-        loss_meter = AverageMeter(ema=True)
-        acc_meter = AverageMeter(ema=True)
-        cls_meters = [AverageMeter(ema=True) for _ in range(self.num_classes)]
 
         # Remember the starting time (for computing the elapsed time)
         time_start = time.time()
@@ -542,13 +537,13 @@ class Trainer:
             
             train_minibatches_iterator = iter(self.train_loader)
             
+            self.algorithm.emp_dist_head = self.algorithm.confidence.sum(0) / self.algorithm.confidence.sum()
+            self.algorithm.emp_dist_head = self.algorithm.emp_dist_head.to(self.device)
+            
             with tqdm(total=num_batches, desc="Training", unit="batch") as pbar:
                 for batch in train_minibatches_iterator:
                     batch_device = [item.to(self.device) for item in batch]
-                    if cfg['loss_type'] in ['Solar', 'HTC']:
-                        loss = self.algorithm.update(batch_device, epoch_idx)
-                    else:
-                        loss = self.algorithm.update(batch_device)
+                    loss = self.algorithm.update(batch_device, epoch_idx)
                         
                     # loss_meter.update(loss.item())
                     # batch_time.update(time.time() - start)
@@ -557,14 +552,12 @@ class Trainer:
                     
                     pbar.update(1)
             
-            if cfg['loss_type'] == 'Solar':
-                self.algorithm.distribution_update(self.train_loader)
                 
             end = time.time()
             print(f"Epoch: {epoch_idx}, Epoch time: {end - start}")  
               
-            self.test()
-                           
+            self.test_HTC()
+ 
         torch.cuda.empty_cache()
 
         print("Finish training")
@@ -579,7 +572,7 @@ class Trainer:
         # save model
         self.save_model(cfg.output_dir)
         
-        self.test()
+        self.test_HTC()
 
         # Close writer
         self._writer.close()
@@ -719,13 +712,16 @@ class Trainer:
             partialY[j, temp_fp_train_labels] = 1.0 # fulfill the partial label matrix
         print("Finish Generating Candidate Label Sets!\n")
         return partialY
-
+    
+    
     @torch.no_grad()
-    def test(self, mode="test"):
+    def test_HTC(self, mode="test"):
         if self.tuner is not None:
             self.tuner.eval()
         if self.head is not None:
             self.head.eval()
+        if self.head1 is not None:
+            self.head1.eval()
         self.evaluator.reset()
 
         if mode == "train":
@@ -734,11 +730,7 @@ class Trainer:
         elif mode == "test":
             print(f"Evaluate on the test set")
             data_loader = self.test_loader
-        
-        # if self.feat_mean is not None:
-        #     bias = self.model.head(self.feat_mean.unsqueeze(0)).detach()
-        #     bias = F.softmax(bias, dim=1)
-            
+    
         for batch in tqdm(data_loader, ascii=True):
             image = batch[0]
             label = batch[1]
@@ -750,10 +742,9 @@ class Trainer:
             image = image.view(_bsz * _ncrops, _c, _h, _w)
 
             if _ncrops <= 5:
-                output, _ = self.model(image)
+                logit_head, logit_tail, _ = self.model(image)
+                output = self.model.ensemble(logit_head, logit_tail, self.algorithm.loss_fn.get_distribution())
                 output = output.view(_bsz, _ncrops, -1).mean(dim=1)
-                # if self.feat_mean is not None:
-                #     output = output - torch.log(bias + 1e-9)
             else:
                 # CUDA out of memory
                 output = []

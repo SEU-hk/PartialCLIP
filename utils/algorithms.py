@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.cuda.amp import GradScaler, autocast
 import math
 import copy
 import numpy as np
@@ -39,6 +40,8 @@ ALGORITHMS = [
     'FREDIS',
     'ALIM',
     'PiCO_plus',
+    'Solar',
+    'HTC',
 ]
 
 def get_algorithm_class(algorithm_name):
@@ -92,12 +95,14 @@ class PRODEN(Algorithm):
 
     def update(self, minibatches):
         x, strong_x, partial_y, _, index = minibatches
-        loss = self.rc_loss(self.predict(x), index)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.confidence_update(x, partial_y, index)
-        return {'loss': loss.item()}
+        with autocast():
+            loss = self.rc_loss(self.predict(x), index)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.confidence_update(x, partial_y, index)
+            return loss
+            # return {'loss': loss.item()}
 
     def rc_loss(self, outputs, index):
         device = "cuda" if index.is_cuda else "cpu"
@@ -405,7 +410,7 @@ class POP(Algorithm):
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
-        #self.train_givenY = torch.from_numpy(train_givenY)
+        self.train_givenY = train_givenY
         tempY = self.train_givenY.sum(dim=1).unsqueeze(1).repeat(1, self.train_givenY.shape[1])
         label_confidence = self.train_givenY.float()/tempY
         self.label_confidence = label_confidence
@@ -473,22 +478,25 @@ class IDGP(Algorithm):
 
     def __init__(self, model, input_shape, train_givenY, hparams):
         super(IDGP, self).__init__(model, input_shape, train_givenY, hparams)
-        self.featurizer_f = networks.Featurizer(input_shape, self.hparams)
-        self.classifier_f = networks.Classifier(
-            self.featurizer_f.n_outputs,
-            self.num_classes)
-        self.f = nn.Sequential(self.featurizer_f, self.classifier_f)
+        self.model = model
+        # self.featurizer_f = self.model.image_encoder
+        # self.classifier_f = torch.nn.Linear(
+        #     self.featurizer_f.out_dim,
+        #     self.num_classes)
+        # self.f = nn.Sequential(self.featurizer_f, self.classifier_f)
+        self.f = self.model
         self.f_opt = torch.optim.Adam(
             self.f.parameters(),
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
 
-        self.featurizer_g = networks.Featurizer(input_shape, self.hparams)
-        self.classifier_g = networks.Classifier(
-            self.featurizer_g.n_outputs,
-            self.num_classes)
-        self.g = nn.Sequential(self.featurizer_g, self.classifier_g)
+        # self.featurizer_g = copy.deepcopy(self.model.image_encoder)
+        # self.classifier_g = torch.nn.Linear(
+        #     self.featurizer_g.out_dim,
+        #     self.num_classes)
+        # self.g = nn.Sequential(self.featurizer_g, self.classifier_g)
+        self.g = copy.deepcopy(self.model)
         self.g_opt = torch.optim.Adam(
             self.g.parameters(),
             lr=self.hparams["lr"],
@@ -570,10 +578,12 @@ class IDGP(Algorithm):
         consistency_criterion_g = nn.KLDivLoss(reduction='batchmean').to(device)
         self.d_array = self.d_array.to(device)
         self.b_array = self.b_array.to(device)
+        self.f = self.f.to(device)
+        self.g = self.g.to(device)
         L_F = None
         if self.curr_iter <= self.warm_up_epoch * self.steps_per_epoch:
             # warm up of f
-            f_logits_o = self.f(x)
+            f_logits_o = self.f(x)[0]
             #f_logits_o_max = torch.max(f_logits_o, dim=1)
             #f_logits_o = f_logits_o - f_logits_o_max.view(-1, 1).expand_as(f_logits_o)
             f_outputs_o = F.softmax(f_logits_o / 1., dim=1)
@@ -583,7 +593,7 @@ class IDGP(Algorithm):
             L_F.backward()
             self.f_opt.step()
             # warm up of g
-            g_logits_o = self.g(x)
+            g_logits_o = self.g(x)[0]
             g_outputs_o = torch.sigmoid(g_logits_o / 1)
             L_g_o = self.weighted_crossentropy_g(g_outputs_o, self.b_array[index,:])
             L_g = L_g_o 
@@ -591,8 +601,8 @@ class IDGP(Algorithm):
             L_g.backward()
             self.g_opt.step()
         else:
-            f_logits_o = self.f(x)
-            g_logits_o = self.g(x)
+            f_logits_o = self.f(x)[0]
+            g_logits_o = self.g(x)[0]
 
             f_outputs_o = F.softmax(f_logits_o / 1., dim=1)
             g_outputs_o = torch.sigmoid(g_logits_o / 1.)
@@ -627,7 +637,7 @@ class IDGP(Algorithm):
         return {'loss': L_F.item()}        
 
     def predict(self, x):
-        return self.f(x)
+        return self.f(x)[0]
 
 class ABS_MAE(Algorithm):
     """
@@ -785,13 +795,13 @@ class DIRK(Algorithm):
         def __init__(self, num_classes, input_shape, hparams):
             super().__init__()
             self.featurizer = networks.Featurizer(input_shape, hparams)
-            self.classifier = networks.Classifier(
-                self.featurizer.n_outputs,
+            self.classifier = torch.nn.Linear(
+                self.featurizer.out_dim,
                 num_classes)
             self.head = nn.Sequential(
-                nn.Linear(self.featurizer.n_outputs, self.featurizer.n_outputs),
+                nn.Linear(self.featurizer.out_dim, self.featurizer.out_dim),
                 nn.ReLU(inplace=True),
-                nn.Linear(self.featurizer.n_outputs, hparams['feat_dim']))
+                nn.Linear(self.featurizer.out_dim, hparams['feat_dim']))
         def forward(self, x):
             feat = self.featurizer(x)
             feat_c = self.head(feat)
@@ -844,16 +854,17 @@ class DIRK(Algorithm):
                 loss = F.cross_entropy(logits, labels)
             return loss
 
-    def __init__(self,input_shape,train_givenY,hparams):
-        super(DIRK, self).__init__(input_shape,train_givenY,hparams)
-        self.stu = self.stu_model(self.num_classes,input_shape,hparams,self.DIRKNet)
-        self.tea=self.tea_model(self.num_classes,input_shape,hparams,self.DIRKNet)
+    def __init__(self, model, input_shape,train_givenY,hparams):
+        super(DIRK, self).__init__(model, input_shape, train_givenY, hparams)
+        self.model = model
+        self.stu = self.stu_model(self.num_classes,input_shape,hparams,self.model.img_encoder)
+        self.tea=self.tea_model(self.num_classes,input_shape,hparams,self.model.img_encoder)
         self.optimizer = torch.optim.Adam(
             self.stu.parameters(),
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
-        # self.train_givenY = torch.from_numpy(train_givenY)
+        self.train_givenY = train_givenY
         self.loss_cont_fn = self.WeightedConLoss(temperature=self.hparams['feat_temperature'], dist_temperature=self.hparams['dist_temperature'])
         self.curr_iter = 0
 
@@ -893,10 +904,10 @@ class DIRK(Algorithm):
         return {'loss': loss.item()}
 
     def predict(self, x):
-        return self.stu(None,x,is_eval=True)
+        return self.stu(None,x,is_eval=True)[0]
 
     def tea_predict(self,x):
-        return self.tea(x)
+        return self.tea(x)[0]
 
     def model_update(self,model_tea, model_stu, momentum=0.99):
         for param_tea, param_stu in zip(model_tea.parameters(), model_stu.parameters()):
@@ -977,35 +988,39 @@ class ABLE(Algorithm):
     """
 
     class ABLE_model(nn.Module):
-        def __init__(self, num_classes,input_shape,hparams, base_encoder):
+        def __init__(self, num_classes,input_shape,hparams, model):
             super().__init__()
-            self.encoder = base_encoder(num_classes,input_shape,hparams)
+            # self.model = model
+            # self.encoder = self.model.image_encoder
+            self.encoder = model
         def forward(self, hparams=None, img_w=None, images=None, partial_Y=None, is_eval=False):
             if is_eval:
+                # output_raw, q = self.encoder(img_w, self.model.tuner, self.model.head)
                 output_raw, q = self.encoder(img_w)
                 return output_raw
+            # outputs, features = self.encoder(images, self.model.tuner, self.model.head)
             outputs, features = self.encoder(images)
             batch_size = hparams['batch_size']
             f1, f2 = torch.split(features, [batch_size, batch_size], dim=0)
             features = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
             return outputs, features
 
-    class ABLENet(nn.Module):
-        def __init__(self,num_classes,input_shape,hparams):
-            super().__init__()
-            self.featurizer = networks.Featurizer(input_shape, hparams)
-            self.classifier = networks.Classifier(
-                self.featurizer.n_outputs,
-                num_classes)
-            self.head = nn.Sequential(
-                nn.Linear(self.featurizer.n_outputs, self.featurizer.n_outputs),
-                nn.ReLU(inplace=True),
-                nn.Linear(self.featurizer.n_outputs, hparams['feat_dim']))
-        def forward(self,x):
-            feat = self.featurizer(x)
-            feat_c = self.head(feat)
-            logits = self.classifier(feat)
-            return logits, F.normalize(feat_c, dim=1)
+    # class ABLENet(nn.Module):
+    #     def __init__(self,num_classes,input_shape,hparams):
+    #         super().__init__()
+    #         self.featurizer = networks.Featurizer(input_shape, hparams)
+    #         self.classifier = torch.nn.Linear(
+    #             self.featurizer.n_outputs,
+    #             num_classes)
+    #         self.head = nn.Sequential(
+    #             nn.Linear(self.featurizer.n_outputs, self.featurizer.n_outputs),
+    #             nn.ReLU(inplace=True),
+    #             nn.Linear(self.featurizer.n_outputs, hparams['feat_dim']))
+    #     def forward(self,x):
+    #         feat = self.featurizer(x)
+    #         feat_c = self.head(feat)
+    #         logits = self.classifier(feat)
+    #         return logits, F.normalize(feat_c, dim=1)
 
     class ClsLoss(nn.Module):
         def __init__(self, predicted_score):
@@ -1076,15 +1091,15 @@ class ABLE(Algorithm):
                 self.predicted_score[batch_index, :] = updated_confidence.detach()
             return None
 
-    def __init__(self,input_shape,train_givenY,hparams):
-        super(ABLE, self).__init__(input_shape,train_givenY,hparams)
-        self.network=self.ABLE_model(self.num_classes,input_shape,hparams=hparams,base_encoder=self.ABLENet)
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(ABLE, self).__init__(model, input_shape, train_givenY, hparams)
+        self.model = model
+        self.network=self.ABLE_model(self.num_classes, input_shape, hparams, self.model)
         self.optimizer = torch.optim.Adam(
             self.network.parameters(),
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
-        # train_givenY = torch.from_numpy(train_givenY)
         tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
         label_confidence = train_givenY.float() / tempY
         self.label_confidence = label_confidence
@@ -1095,7 +1110,7 @@ class ABLE(Algorithm):
     def update(self,minibatches):
         x, strong_x, partial_y, _, index = minibatches
         X_tot = torch.cat([x, strong_x], dim=0)
-        batch_size = self.hparams['batch_size']
+        batch_size = x.shape[0]
 
         cls_out, features = self.network(hparams=self.hparams, images=X_tot, partial_Y=partial_y, is_eval=False)
         cls_out_w = cls_out[0: batch_size, :]
@@ -1111,7 +1126,7 @@ class ABLE(Algorithm):
         return {'loss': loss.item()}
 
     def predict(self,images,):
-        return self.network(img_w=images,is_eval=True)
+        return self.network(img_w=images,is_eval=True)[0]
 
 
 class PiCO(Algorithm):
@@ -1121,17 +1136,23 @@ class PiCO(Algorithm):
     """
 
     class PiCO_model(nn.Module):
-        def __init__(self, num_classes,input_shape,hparams, base_encoder):
+        def __init__(self, num_classes, input_shape, hparams, model):
             super().__init__()
-            self.encoder_q = base_encoder(num_classes, input_shape, hparams)
-            self.encoder_k = base_encoder(num_classes, input_shape, hparams)
+            # self.encoder_q = base_encoder(num_classes, input_shape, hparams)
+            # self.encoder_k = base_encoder(num_classes, input_shape, hparams)
+            self.model = model
+            base_encoder = self.model.image_encoder
+            self.encoder_q = base_encoder
+            self.encoder_k = copy.deepcopy(base_encoder)
+            feat_dim = base_encoder.out_dim
+            
             for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
                 param_k.data.copy_(param_q.data)
                 param_k.requires_grad = False
-            self.register_buffer("queue", torch.randn(hparams['moco_queue'], hparams['feat_dim']))
+            self.register_buffer("queue", torch.randn(hparams['moco_queue'], feat_dim))
             self.register_buffer("queue_pseudo", torch.randn(hparams['moco_queue']))
             self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
-            self.register_buffer("prototypes", torch.zeros(num_classes, hparams['feat_dim']))
+            self.register_buffer("prototypes", torch.zeros(num_classes, feat_dim))
             self.queue = F.normalize(self.queue, dim=0)
 
         @torch.no_grad()
@@ -1144,53 +1165,66 @@ class PiCO(Algorithm):
             batch_size = keys.shape[0]
             ptr = int(self.queue_ptr)
             assert hparams['moco_queue'] % batch_size == 0
-            self.queue[ptr:ptr + batch_size, :] = keys
+            try:
+                self.queue[ptr:ptr + batch_size, :] = keys
+            except:
+                import pdb;pdb.set_trace()
             self.queue_pseudo[ptr:ptr + batch_size] = labels
             ptr = (ptr + batch_size) % hparams['moco_queue']
             self.queue_ptr[0] = ptr
 
 
         def forward(self, img_q, im_k=None, partial_Y=None, hparams=None, is_eval=False):
-            output, q = self.encoder_q(img_q)
+            # output, q = self.encoder_q(img_q)
+            output, q = self.encoder_q(img_q, self.model.tuner, self.model.head)
             if is_eval:
                 return output
 
             predicted_scores = torch.softmax(output, dim=1) * partial_Y
             max_scores, pseudo_labels_b = torch.max(predicted_scores, dim=1)
+            
+            # self.prototypes = self.prototypes.to(q.device)
+            # self.queue_pseudo = self.queue_pseudo.to(q.device)
+            # self.queue = self.queue.to(q.device)
+            # self.queue_ptr = self.queue_ptr.to(q.device)
+            
             prototypes = self.prototypes.clone().detach()
             logits_prot = torch.mm(q, prototypes.t())
             score_prot = torch.softmax(logits_prot, dim=1)
+            
             with torch.no_grad():
                 for feat, label in zip(q, pseudo_labels_b):
                     self.prototypes[label] = self.prototypes[label] * hparams['proto_m'] + (1 - hparams['proto_m']) * feat
             self.prototypes = F.normalize(self.prototypes, p=2, dim=1).detach()
+            
             with torch.no_grad():
                 self._momentum_update_key_encoder(hparams)
-                _, k = self.encoder_k(im_k)
+                _, k = self.encoder_k(im_k, self.model.tuner, self.model.head)
+                
             features = torch.cat((q, k, self.queue.clone().detach()), dim=0)
             pseudo_labels = torch.cat((pseudo_labels_b, pseudo_labels_b, self.queue_pseudo.clone().detach()), dim=0)
             self._dequeue_and_enqueue(k, pseudo_labels_b, hparams)
             return output, features, pseudo_labels, score_prot
 
 
-    class PiCONet(nn.Module):
-        def __init__(self,num_classes,input_shape,hparams):
-            super().__init__()
-            self.featurizer = networks.Featurizer(input_shape, hparams)
-            self.classifier = networks.Classifier(
-                self.featurizer.n_outputs,
-                num_classes)
-            self.head = nn.Sequential(
-                nn.Linear(self.featurizer.n_outputs, self.featurizer.n_outputs),
-                nn.ReLU(inplace=True),
-                nn.Linear(self.featurizer.n_outputs, hparams['feat_dim']))
-            self.register_buffer("prototypes", torch.zeros(num_classes, hparams['feat_dim']))
+    # class PiCONet(nn.Module):
+    #     def __init__(self,num_classes,input_shape,hparams):
+    #         super().__init__()
+    #         self.featurizer = networks.Featurizer(input_shape, hparams)
+    #         self.classifier = torch.nn.Linear(
+    #             self.featurizer.n_outputs,
+    #             num_classes)
+    #         self.head = nn.Sequential(
+    #             nn.Linear(self.featurizer.n_outputs, self.featurizer.n_outputs),
+    #             nn.ReLU(inplace=True),
+    #             nn.Linear(self.featurizer.n_outputs, hparams['feat_dim']))
+    #         self.register_buffer("prototypes", torch.zeros(num_classes, hparams['feat_dim']))
 
-        def forward(self, x):
-            feat = self.featurizer(x)
-            feat_c = self.head(feat)
-            logits = self.classifier(feat)
-            return logits, F.normalize(feat_c, dim=1)
+    #     def forward(self, x):
+    #         feat = self.featurizer(x)
+    #         feat_c = self.head(feat)
+    #         logits = self.classifier(feat)
+    #         return logits, F.normalize(feat_c, dim=1)
 
     class partial_loss(nn.Module):
         def __init__(self, confidence, hparams, conf_ema_m=0.99):
@@ -1251,16 +1285,16 @@ class PiCO(Algorithm):
                 loss = F.cross_entropy(logits, labels)
             return loss
 
-    def __init__(self,input_shape,train_givenY,hparams):
-        super(PiCO, self).__init__(input_shape,train_givenY,hparams)
-        self.network=self.PiCO_model(self.num_classes,input_shape,hparams=hparams,base_encoder=self.PiCONet)
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(PiCO, self).__init__(model, input_shape, train_givenY, hparams)
+        self.model = model
+        self.network=self.PiCO_model(self.num_classes, input_shape, hparams, self.model)
         self.optimizer = torch.optim.Adam(
             self.network.parameters(),
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
 
-        # train_givenY = torch.from_numpy(train_givenY)
         tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
         label_confidence = train_givenY.float() / tempY
         self.label_confidence = label_confidence
@@ -1297,7 +1331,375 @@ class PiCO(Algorithm):
         return self.network(img_q=images,is_eval=True)
 
 
+class PiCO2(Algorithm):
+    """
+    PiCO
+    Reference: PiCO: Contrastive Label Disambiguation for Partial Label Learning
+    """
+
+    class PiCO_model(nn.Module):
+        def __init__(self, num_classes, input_shape, hparams, model):
+            super().__init__()
+            # self.encoder_q = base_encoder(num_classes, input_shape, hparams)
+            # self.encoder_k = base_encoder(num_classes, input_shape, hparams)
+            self.model = model
+            base_encoder = self.model.image_encoder
+            self.encoder_q = base_encoder
+            self.encoder_k = copy.deepcopy(base_encoder)
+            feat_dim = base_encoder.out_dim
+            
+            for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
+                param_k.data.copy_(param_q.data)
+                param_k.requires_grad = False
+            self.register_buffer("queue", torch.randn(hparams['moco_queue'], feat_dim))
+            self.register_buffer("queue_pseudo", torch.randn(hparams['moco_queue']))
+            self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
+            self.register_buffer("prototypes", torch.zeros(num_classes, feat_dim))
+            self.queue = F.normalize(self.queue, dim=0)
+
+        @torch.no_grad()
+        def _momentum_update_key_encoder(self, hparams):
+            for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
+                param_k.data = param_k.data * hparams['moco_m'] + param_q.data * (1. - hparams['moco_m'])
+
+        @torch.no_grad()
+        def _dequeue_and_enqueue(self, keys, labels, hparams):
+            batch_size = keys.shape[0]
+            ptr = int(self.queue_ptr)
+            assert hparams['moco_queue'] % batch_size == 0
+            self.queue[ptr:ptr + batch_size, :] = keys
+            self.queue_pseudo[ptr:ptr + batch_size] = labels
+            ptr = (ptr + batch_size) % hparams['moco_queue']
+            self.queue_ptr[0] = ptr
+
+
+        def forward(self, img_q, im_k=None, partial_Y=None, hparams=None, is_eval=False):
+            # output, q = self.encoder_q(img_q)
+            output, q = self.encoder_q(img_q, self.model.tuner, self.model.head)
+            if is_eval:
+                return output
+
+            predicted_scores = torch.softmax(output, dim=1) * partial_Y
+            max_scores, pseudo_labels_b = torch.max(predicted_scores, dim=1)
+            
+            prototypes = self.prototypes.clone().detach()
+            logits_prot = torch.mm(q, prototypes.t())
+            score_prot = torch.softmax(logits_prot, dim=1)
+            
+            with torch.no_grad():
+                for feat, label in zip(q, pseudo_labels_b):
+                    self.prototypes[label] = self.prototypes[label] * hparams['proto_m'] + (1 - hparams['proto_m']) * feat
+            self.prototypes = F.normalize(self.prototypes, p=2, dim=1).detach()
+            
+            with torch.no_grad():
+                self._momentum_update_key_encoder(hparams)
+                _, k = self.encoder_k(im_k, self.model.tuner, self.model.head)
+                
+            features = torch.cat((q, k, self.queue.clone().detach()), dim=0)
+            pseudo_labels = torch.cat((pseudo_labels_b, pseudo_labels_b, self.queue_pseudo.clone().detach()), dim=0)
+            self._dequeue_and_enqueue(k, pseudo_labels_b, hparams)
+            return output, features, pseudo_labels, score_prot
+
+
+    class partial_loss(nn.Module):
+        def __init__(self, confidence, hparams, conf_ema_m=0.99):
+            super().__init__()
+            self.confidence = confidence
+            self.init_conf = confidence.detach()
+            self.conf_ema_m = conf_ema_m
+            self.conf_ema_range = [float(item) for item in hparams['conf_ema_range'].split(',')]
+        def set_conf_ema_m(self, epoch, total_epochs):
+            start = self.conf_ema_range[0]
+            end = self.conf_ema_range[1]
+            self.conf_ema_m = 1. * epoch /total_epochs * (end - start) + start
+        def forward(self, outputs, index):
+            device = "cuda" if outputs.is_cuda else "cpu"
+            self.confidence=self.confidence.to(device)
+            logsm_outputs = F.log_softmax(outputs, dim=1)
+            final_outputs = logsm_outputs * self.confidence[index, :]
+            average_loss = - ((final_outputs).sum(dim=1)).mean()
+            return average_loss
+        def confidence_update(self, temp_un_conf, batch_index, batchY):
+            with torch.no_grad():
+                _, prot_pred = (temp_un_conf * batchY).max(dim=1)
+                pseudo_label = F.one_hot(prot_pred, batchY.shape[1]).float().cuda().detach()
+                self.confidence[batch_index, :] = self.conf_ema_m * self.confidence[batch_index, :] \
+                                                  + (1 - self.conf_ema_m) * pseudo_label
+            return None
+
+    class SupConLoss(nn.Module):
+        def __init__(self, temperature=0.07, base_temperature=0.07):
+            super().__init__()
+            self.temperature = temperature
+            self.base_temperature = base_temperature
+        def forward(self, features, mask=None, batch_size=-1):
+            device = (torch.device('cuda') if features.is_cuda else torch.device('cpu'))
+            if mask is not None:
+                mask = mask.float().detach().to(device)
+                anchor_dot_contrast = torch.div(
+                    torch.matmul(features[:batch_size], features.T),
+                    self.temperature)
+                logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
+                logits = anchor_dot_contrast - logits_max.detach()
+                logits_mask = torch.scatter(torch.ones_like(mask), 1, torch.arange(batch_size).view(-1, 1).to(device), 0)
+                mask = mask * logits_mask
+                exp_logits = torch.exp(logits) * logits_mask
+                log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True) + 1e-12)
+                mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
+                loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
+                loss = loss.mean()
+            else:
+                q = features[:batch_size]
+                k = features[batch_size:batch_size * 2]
+                queue = features[batch_size * 2:]
+                l_pos = torch.einsum('nc,nc->n', [q, k]).unsqueeze(-1)
+                l_neg = torch.einsum('nc,kc->nk', [q, queue])
+                logits = torch.cat([l_pos, l_neg], dim=1)
+                logits /= self.temperature
+                labels = torch.zeros(logits.shape[0], dtype=torch.long).cuda()
+                loss = F.cross_entropy(logits, labels)
+            return loss
+
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(PiCO, self).__init__(model, input_shape, train_givenY, hparams)
+        self.model = model
+        self.network=self.PiCO_model(self.num_classes, input_shape, hparams, self.model)
+        self.optimizer = torch.optim.Adam(
+            self.network.parameters(),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        label_confidence = train_givenY.float() / tempY
+        self.label_confidence = label_confidence
+        self.loss_fn = self.partial_loss(label_confidence.float(),self.hparams)
+        self.loss_cont_fn = self.SupConLoss()
+        self.train_givenY = train_givenY
+        self.curr_iter = 0
+        self.max_steps = self.hparams['num_epochs']
+
+    def update(self,minibatches):
+        x, strong_x, partial_y, _, index = minibatches
+        cls_out, features_cont, pseudo_target_cont, score_prot = self.network(x, strong_x, partial_y, self.hparams)
+        batch_size = cls_out.shape[0]
+        pseudo_target_cont = pseudo_target_cont.contiguous().view(-1, 1)
+
+        start_upd_prot = self.curr_iter >= self.hparams['prot_start']
+        if start_upd_prot:
+            self.loss_fn.confidence_update(temp_un_conf=score_prot, batch_index=index, batchY=partial_y)
+        if start_upd_prot:
+            mask = torch.eq(pseudo_target_cont[:batch_size], pseudo_target_cont.T).float().cuda()
+        else:
+            mask = None
+        loss_cont = self.loss_cont_fn(features=features_cont, mask=mask, batch_size=batch_size)
+        loss_cls = self.loss_fn(cls_out, index)
+        loss = loss_cls + self.hparams['loss_weight'] * loss_cont
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        self.loss_fn.set_conf_ema_m(self.curr_iter, self.max_steps)
+        self.curr_iter = self.curr_iter + 1
+        return {'loss': loss.item()}
+
+    def predict(self,images,):
+        return self.network(img_q=images,is_eval=True)
+    
+    
 class VALEN(Algorithm):
+    """
+    VALEN
+    Reference: Instance-Dependent Partial Label Learning, NeurIPS 2021.
+    """
+
+    class VAE_Bernulli_Decoder(nn.Module):
+        def __init__(self, n_in, n_hidden, n_out, keep_prob=1.0) -> None:
+            super().__init__()
+            self.layer1 = nn.Linear(n_in, n_hidden)
+            self.layer2 = nn.Linear(n_hidden, 3 * 224 * 224)
+            self._init_weight()
+
+        def _init_weight(self):
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_normal_(m.weight.data)
+                    m.bias.data.fill_(0.01)
+
+        def forward(self, inputs):
+            h0 = self.layer1(inputs)
+            h0 = F.relu(h0)
+            x_hat = self.layer2(h0)
+            return x_hat
+
+    def num_flat_features(self, input_shape):
+        #size = x.size()[1:]
+        size = input_shape[1:]
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
+
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(VALEN, self).__init__(model, input_shape, train_givenY, hparams)
+        self.net = model
+        self.enc = copy.deepcopy(self.net)
+        #self.num_features = input_shape[1] * input_shape[2] * input_shape[3]
+        self.num_features = self.num_flat_features(input_shape)
+        self.dec=self.VAE_Bernulli_Decoder(self.num_classes, self.num_features, self.num_features)
+        self.optimizer = torch.optim.Adam(
+            list(self.net.parameters()) + list(self.enc.parameters()) + list(self.dec.parameters()),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+        self.warmup_opt=torch.optim.SGD(list(self.net.parameters()), lr=self.hparams["lr"], weight_decay=self.hparams['weight_decay'], momentum=0.9)
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        partial_weight = train_givenY.float() / tempY
+        self.o_array = partial_weight
+        self.feature_extracted= torch.zeros((train_givenY.shape[0], self.net.image_encoder.out_dim))
+
+        self.curr_iter = 0
+        self.steps_per_epoch = train_givenY.shape[0] / self.hparams['batch_size']
+        self.mat_save_path = hparams['output_dir']
+
+    def partial_loss(self,output1, target, true, eps=1e-12):
+        output = F.softmax(output1, dim=1)
+        l = target * torch.log(output + eps)
+        loss = (-torch.sum(l)) / l.size(0)
+        revisedY = target.clone()
+        revisedY[revisedY > 0] = 1
+        revisedY = revisedY * (output.clone().detach() + eps)
+        revisedY = revisedY / revisedY.sum(dim=1).repeat(revisedY.size(1), 1).transpose(0, 1)
+        new_target = revisedY
+        return loss, new_target
+
+    def alpha_loss(self, alpha, prior_alpha):
+        KLD = torch.mvlgamma(alpha.sum(1), p=1) - torch.mvlgamma(alpha, p=1).sum(1) - torch.mvlgamma(prior_alpha.sum(1),
+                                                                                                     p=1) + torch.mvlgamma(
+            prior_alpha, p=1).sum(1) + ((alpha - prior_alpha) * (
+                    torch.digamma(alpha) - torch.digamma(alpha.sum(dim=1, keepdim=True).expand_as(alpha)))).sum(1)
+        return KLD.mean()
+
+    def update(self,minibatches):
+        x, strong_x, partial_y, _, index = minibatches
+        device = "cuda" if index.is_cuda else "cpu"
+        if self.curr_iter<self.hparams['warm_up']:
+            outputs = self.net(x)[0]
+            self.o_array=self.o_array.to(device)
+            L_ce, new_labels = self.partial_loss(outputs, self.o_array[index, :].clone().detach(), None)
+            self.o_array[index, :] = new_labels.clone().detach()
+            self.warmup_opt.zero_grad()
+            L_ce.backward()
+            self.warmup_opt.step()
+            self.curr_iter=self.curr_iter+1
+            return {'loss': torch.tensor(0.0)}
+        elif self.hparams['warm_up']<=self.curr_iter and self.curr_iter<self.hparams['warm_up']+self.steps_per_epoch+1:
+            self.feature_extracted=self.feature_extracted.to(device)
+            self.feature_extracted[index, :] = self.net(x)[1].detach()
+            self.curr_iter=self.curr_iter+1
+            return {'loss': torch.tensor(0.0)}
+        elif self.hparams['warm_up']+self.steps_per_epoch+1<self.curr_iter and self.curr_iter<self.hparams['warm_up']+self.steps_per_epoch+2:
+            self.enc = copy.deepcopy(self.net)
+            adj = self.gen_adj_matrix2(self.feature_extracted.cpu().numpy(), k=self.hparams['knn'],
+                                  path=os.path.abspath(self.mat_save_path + "/adj_matrix.npy"))
+            self.A = adj.to_dense()
+            self.adj = adj.to(device)
+            self.prior_alpha = torch.Tensor(1, self.num_classes).fill_(1.0).to(device)
+            self.d_array = copy.deepcopy(self.o_array)
+            self.curr_iter = self.curr_iter + 1
+            return {'loss': torch.tensor(0.0)}
+        else:
+            outputs, _ = self.net(x)
+            alpha, _ = self.enc(x)
+            s_alpha = F.softmax(alpha, dim=1)
+            revised_alpha = torch.zeros_like(partial_y)
+            revised_alpha[self.o_array[index, :] > 0] = 1.0
+            s_alpha = s_alpha * revised_alpha
+            s_alpha_sum = s_alpha.clone().detach().sum(dim=1, keepdim=True)
+            s_alpha = s_alpha / s_alpha_sum + 1e-2
+            L_d, new_d = self.partial_loss(alpha, self.o_array[index, :], None)
+            alpha = torch.exp(alpha / 4)
+            alpha = F.hardtanh(alpha, min_val=1e-2, max_val=30)
+            L_alpha = self.alpha_loss(alpha, self.prior_alpha)
+            dirichlet_sample_machine = torch.distributions.dirichlet.Dirichlet(s_alpha)
+            d = dirichlet_sample_machine.rsample()
+            x_hat = self.dec(d.float())
+            try:
+                x_hat = x_hat.view(x.shape)
+            except:
+                import pdb; pdb.set_trace()
+            A_hat = F.softmax(self.dot_product_decode(d.float()), dim=1)
+            L_recx = 0.01 * F.mse_loss(x_hat, x)
+            #L_recy = 0.01 * F.binary_cross_entropy_with_logits(d, partial_y)
+            L_recy = 0.01 * F.binary_cross_entropy_with_logits(d, partial_y.float())
+            L_recA = F.mse_loss(A_hat, self.A.to(device)[index, :][:, index].to(device))
+            L_rec = L_recx + L_recy + L_recA
+            L_o, new_o = self.partial_loss(outputs, self.d_array[index, :], None)
+            L = self.hparams['alpha'] * L_rec + self.hparams['beta'] * L_alpha + self.hparams['gamma'] * L_d + self.hparams['theta'] * L_o
+            self.optimizer.zero_grad()
+            L.backward()
+            self.optimizer.step()
+            new_d = self.revised_target(d, new_d)
+            new_d = self.hparams['correct'] * new_d + (1 - self.hparams['correct']) * self.o_array[index, :]
+            self.d_array[index, :] = new_d.clone().detach()
+            self.o_array[index, :] = new_o.clone().detach()
+            self.curr_iter = self.curr_iter + 1
+            return {'loss': L.item()}
+
+
+    def revised_target(self,output, target):
+        revisedY = target.clone()
+        revisedY[revisedY > 0] = 1
+        revisedY = revisedY * (output.clone().detach())
+        revisedY = revisedY / revisedY.sum(dim=1).repeat(revisedY.size(1), 1).transpose(0, 1)
+        new_target = revisedY
+
+        return new_target
+    def dot_product_decode(self,Z):
+        A_pred = torch.sigmoid(torch.matmul(Z, Z.t()))
+        return A_pred
+
+    def adj_normalize(self, mx):
+        rowsum = np.array(mx.sum(1))
+        r_inv = np.power(rowsum, -1).flatten()
+        r_inv[np.isinf(r_inv)] = 0
+        r_mat_inv = sp.diags(r_inv)
+        mx = r_mat_inv.dot(mx)
+        return mx
+
+    def sparse_mx_to_torch_sparse_tensor(self,sparse_mx):
+        sparse_mx = sparse_mx.tocoo().astype(np.float32)
+        indices = torch.from_numpy(
+            np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64)
+        )
+        values = torch.from_numpy(sparse_mx.data)
+        shape = torch.Size(sparse_mx.shape)
+        return torch.sparse.FloatTensor(indices, values, shape)
+
+    def gen_adj_matrix2(self, X, k=10, path=""):
+        if os.path.exists(path):
+            print("Found adj matrix file and Load.")
+            adj_m = np.load(path)
+            print("Adj matrix Finished.")
+        else:
+            print("Not Found adj matrix file and Compute.")
+            dm = euclidean_distances(X, X)
+            adj_m = np.zeros_like(dm)
+            row = np.arange(0, X.shape[0])
+            dm[row, row] = np.inf
+            for _ in range(0, k):
+                col = np.argmin(dm, axis=1)
+                dm[row, col] = np.inf
+                adj_m[row, col] = 1.0
+            np.save(path, adj_m)
+            print("Adj matrix Finished.")
+        adj_m = sp.coo_matrix(adj_m)
+        adj_m = self.adj_normalize(adj_m + sp.eye(adj_m.shape[0]))
+        adj_m = self.sparse_mx_to_torch_sparse_tensor(adj_m)
+        return adj_m
+
+
+class VALEN1(Algorithm):
     """
     VALEN
     Reference: Instance-Dependent Partial Label Learning, NeurIPS 2021.
@@ -1331,10 +1733,11 @@ class VALEN(Algorithm):
         return num_features
 
     def __init__(self, model, input_shape, train_givenY, hparams):
-        super(VALEN, self).__init__(input_shape,train_givenY,hparams)
-        self.featurizer_net = networks.Featurizer(input_shape, self.hparams)
-        self.classifier_net = networks.Classifier(
-            self.featurizer_net.n_outputs,
+        super(VALEN, self).__init__(model, input_shape,train_givenY,hparams)
+        self.model = model
+        self.featurizer_net = self.model.image_encoder
+        self.classifier_net = torch.nn.Linear(
+            self.featurizer_net.out_dim,
             self.num_classes)
         self.net = nn.Sequential(self.featurizer_net, self.classifier_net)
         self.enc=copy.deepcopy(self.net)
@@ -1352,7 +1755,7 @@ class VALEN(Algorithm):
         tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
         partial_weight = train_givenY.float() / tempY
         self.o_array = partial_weight
-        self.feature_extracted= torch.zeros((train_givenY.shape[0], self.featurizer_net.n_outputs))
+        self.feature_extracted= torch.zeros((train_givenY.shape[0], self.featurizer_net.out_dim))
 
         self.curr_iter = 0
         self.steps_per_epoch = train_givenY.shape[0] / self.hparams['batch_size']
@@ -1492,7 +1895,8 @@ class VALEN(Algorithm):
         adj_m = self.adj_normalize(adj_m + sp.eye(adj_m.shape[0]))
         adj_m = self.sparse_mx_to_torch_sparse_tensor(adj_m)
         return adj_m
-
+    
+    
 ## Complementary-label learning algorithms
 
 class PC(Algorithm):
@@ -2021,7 +2425,7 @@ class PiCO_plus(PiCO):
                         self.prototypes[label] = self.prototypes[label] * hparams['proto_m'] + (1 - hparams['proto_m']) * feat
                 self.prototypes = F.normalize(self.prototypes, p=2, dim=1).detach()
                 self._momentum_update_key_encoder(hparams)
-                _, k = self.encoder_k(im_k)
+                _, k = self.encoder_k(im_k, self.model.tuner, self.model.head)
             features = torch.cat((q, k, self.queue.clone().detach()), dim=0)
             pseudo_labels = torch.cat((pseudo_labels_b, pseudo_labels_b, self.queue_pseudo.clone().detach()), dim=0)
             is_rel_queue = torch.cat((is_rel, is_rel, self.queue_rel.clone().detach()), dim=0)
@@ -2234,9 +2638,10 @@ class ALIM(PiCO):
             return None
 
 
-    def __init__(self,input_shape,train_givenY,hparams):
+    def __init__(self, model, input_shape, train_givenY, hparams):
         super(ALIM, self).__init__(input_shape,train_givenY,hparams)
-        self.network=self.PiCO_model(self.num_classes,input_shape,hparams=hparams,base_encoder=self.PiCONet)
+        self.model = model
+        self.network=self.PiCO_model(self.num_classes,input_shape,hparams=hparams,base_encoder=self.model.img_encoder)
         self.optimizer = torch.optim.Adam(
             self.network.parameters(),
             lr=self.hparams["lr"],
@@ -2294,3 +2699,433 @@ class ALIM(PiCO):
         self.loss_fn.set_conf_ema_m(self.curr_iter, self.max_steps)
         self.margin += ((torch.max(score_prot*partial_y, 1)[0])/(1e-9+torch.max(score_prot*(1-partial_y), 1)[0])).tolist()
         return {'loss': loss.item()}
+    
+
+# LT-PLL
+    
+class Solar(Algorithm):
+    """
+    Solar
+    Reference: SoLar: Sinkhorn Label Reffnery for Imbalanced Partial-Label Learning, ICLR 2022.
+    """
+    class partial_loss(nn.Module):
+        def __init__(self, train_givenY):
+            super().__init__()
+            print('Calculating uniform targets...')
+            tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+            confidence = train_givenY.float()/tempY
+            confidence = confidence.cuda()
+            # calculate confidence
+            self.confidence = confidence
+
+        def forward(self, outputs, index, targets=None):
+            logsm_outputs = F.log_softmax(outputs, dim=1)
+            if targets is None:
+                # using confidence
+                final_outputs = logsm_outputs * self.confidence[index, :].detach()
+            else:
+                # using given tagets
+                final_outputs = logsm_outputs * targets.detach()
+            loss_vec = - ((final_outputs).sum(dim=1))
+            average_loss = loss_vec.mean()
+            return average_loss, loss_vec
+
+        @torch.no_grad()
+        def confidence_update(self, temp_un_conf, batch_index):
+            self.confidence[batch_index, :] = temp_un_conf
+            return None
+    
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(Solar, self).__init__(model, input_shape, train_givenY, hparams)
+
+        self.network = model
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        label_confidence = train_givenY.float()/tempY
+        self.num_class = tempY.shape[1]
+        self.confidence = label_confidence.to(train_givenY.device)
+        self.mu = 0.1
+        self.queue = torch.zeros(hparams['queue_length'], self.num_class).cuda()
+        self.emp_dist = torch.ones(self.num_class)/self.num_class
+        self.emp_dist = self.emp_dist.unsqueeze(dim=1)
+        self.loss_fn = self.partial_loss(train_givenY)
+        self.optimizer = torch.optim.Adam(
+            self.network.parameters(),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+    def update(self, minibatches, epoch):
+        x, strong_x, partial_y, _, index = minibatches
+        
+        # with autocast():
+        logits_w = self.network(x)[0]
+        logits_s = self.network(strong_x)[0]
+        bs = x.shape[0]
+        
+        eta = self.hparams['eta'] * self.linear_rampup(epoch, self.hparams['warmup_epoch'])
+        rho = self.hparams['rho_start'] + (self.hparams['rho_end'] - self.hparams['rho_start']) * self.linear_rampup(epoch, self.hparams['warmup_epoch'])
+        # calculate weighting parameters
+
+        prediction = F.softmax(logits_w.detach(), dim=1)
+        sinkhorn_cost = prediction * partial_y
+        # calculate sinkhorn cost (M matrix in our paper)
+        conf_rn = sinkhorn_cost / sinkhorn_cost.sum(dim=1).repeat(prediction.size(1), 1).transpose(0, 1)
+        # re-normalized prediction for unreliable examples
+
+        # time to use queue, output now represent queue+output
+        prediction_queue = sinkhorn_cost.detach()
+        if self.queue is not None:
+            if not torch.all(self.queue[-1, :] == 0):
+                prediction_queue = torch.cat((self.queue, prediction_queue))
+            # fill the queue
+            self.queue[bs:] = self.queue[:-bs].clone().detach()
+            self.queue[:bs] = prediction_queue[-bs:].clone().detach()
+        pseudo_label_soft, flag = self.sinkhorn(prediction_queue, self.hparams['lamd'], r_in=self.emp_dist)
+        pseudo_label = pseudo_label_soft[-bs:]
+        pseudo_label_idx = pseudo_label.max(dim=1)[1]
+
+        _, rn_loss_vec = self.loss_fn(logits_w, index)
+        _, pseudo_loss_vec = self.loss_fn(logits_w, None, targets=pseudo_label)
+
+        idx_chosen_sm = []
+        sel_flags = torch.zeros(x.shape[0]).cuda().detach()
+        # initialize selection flags
+        for j in range(self.num_class):
+            indices = np.where(pseudo_label_idx.cpu().numpy()==j)[0]
+            # torch.where will cause device error
+            if len(indices) == 0:
+                continue
+                # if no sample is assigned this label (by argmax), skip
+            bs_j = bs * self.emp_dist[j]
+            pseudo_loss_vec_j = pseudo_loss_vec[indices]
+            sorted_idx_j = pseudo_loss_vec_j.sort()[1].cpu().numpy()
+            partition_j = max(min(int(math.ceil(bs_j*rho)), len(indices)), 1)
+            # at least one example
+            idx_chosen_sm.append(indices[sorted_idx_j[:partition_j]])
+
+        idx_chosen_sm = np.concatenate(idx_chosen_sm)
+        sel_flags[idx_chosen_sm] = 1
+        # filtering clean sinkhorn labels
+        high_conf_cond = (pseudo_label * prediction).sum(dim=1) > self.hparams['tau']
+        sel_flags[high_conf_cond] = 1
+        idx_chosen = torch.where(sel_flags == 1)[0]
+        idx_unchosen = torch.where(sel_flags == 0)[0]
+
+        if epoch < 1 or idx_chosen.shape[0] == 0:
+            # first epoch, using uniform labels for training
+            # else, if no samples are chosen, run rn 
+            loss = rn_loss_vec.mean()
+        else:
+            if idx_unchosen.shape[0] > 0:
+                loss_unreliable = rn_loss_vec[idx_unchosen].mean()
+            else:
+                loss_unreliable = 0
+            loss_sin = pseudo_loss_vec[idx_chosen].mean()
+            loss_cons, _ = self.loss_fn(logits_s[idx_chosen], None, targets=pseudo_label[idx_chosen])
+            # consistency regularization
+            
+            l = np.random.beta(4, 4)
+            l = max(l, 1-l)
+            X_w_c = x[idx_chosen]
+            pseudo_label_c = pseudo_label[idx_chosen]
+            idx = torch.randperm(X_w_c.size(0))
+            X_w_c_rand = X_w_c[idx]
+            pseudo_label_c_rand = pseudo_label_c[idx]
+            X_w_c_mix = l * X_w_c + (1 - l) * X_w_c_rand        
+            pseudo_label_c_mix = l * pseudo_label_c + (1 - l) * pseudo_label_c_rand
+            logits_mix, _ = self.network(X_w_c_mix)
+            loss_mix, _  = self.loss_fn(logits_mix, None, targets=pseudo_label_c_mix)
+            # mixup training
+
+            loss = (loss_sin + loss_mix + loss_cons) * eta + loss_unreliable * (1 - eta)
+            
+            # self.confidence_move_update(conf_rn, index)
+            
+            # self.emp_dist = self.confidence.sum(0) / self.confidence.sum()
+            
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        return loss
+
+    @torch.no_grad()
+    def confidence_move_update(self, temp_un_conf, batch_index, ratio=None):
+        self.confidence = self.confidence.to(batch_index.device)
+        if ratio:
+            self.confidence[batch_index, :] = self.confidence[batch_index, :] * (1 - ratio) + temp_un_conf * ratio
+        else:
+            self.confidence[batch_index, :] = self.confidence[batch_index, :] * (1 - self.mu) + temp_un_conf * self.mu
+        return None
+
+    def distribution_update(self, est_loader):
+        gamma = 0.01
+        with torch.no_grad():
+            print('==> Estimating empirical label distribution ...')       
+            self.network.eval()
+            est_pred_list = []
+            for _, (images, _, labels, true_labels, index) in enumerate(est_loader):
+                images, labels = images.cuda(), labels.cuda()
+                outputs, _ = self.network(images)   
+                pred = torch.softmax(outputs, dim=1) * labels
+                est_pred_list.append(pred.cpu())
+            
+        est_pred_idx = torch.cat(est_pred_list, dim=0).max(dim=1)[1]
+        est_pred = F.one_hot(est_pred_idx, self.num_class).detach()
+        emp_dist = est_pred.sum(0)
+        emp_dist = emp_dist / float(emp_dist.sum())
+
+        emp_dist_train = emp_dist.unsqueeze(1)
+        # estimating empirical class prior by counting prediction
+        self.emp_dist = emp_dist_train * gamma + self.emp_dist * (1 - gamma)
+        # moving-average updating class prior
+        
+        
+        
+    def predict(self, x):
+        return self.network(x)[0]
+    
+    def sinkhorn(self, pred, eta, r_in=None, rec=False):
+        PS = pred.detach()
+        K = PS.shape[1]
+        N = PS.shape[0]
+        PS = PS.T
+        c = torch.ones((N, 1)) / N
+        r = r_in.cuda()
+        c = c.cuda()
+        # average column mean 1/N
+        PS = torch.pow(PS, eta)  # K x N
+        r_init = copy.deepcopy(r)
+        inv_N = 1. / N
+        err = 1e6
+        # error rate
+        _counter = 1
+        for i in range(50):
+            if err < 1e-1:
+                break
+            r = r_init * (1 / (PS @ c))  # (KxN)@(N,1) = K x 1
+            # 1/K(Plambda * beta)
+            c_new = inv_N / (r.T @ PS).T  # ((1,K)@(KxN)).t() = N x 1
+            # 1/N(alpha * Plambda)
+            if _counter % 10 == 0:
+                err = torch.sum(c_new) + torch.sum(r)
+                if torch.isnan(err):
+                    # This may very rarely occur (maybe 1 in 1k epochs)
+                    # So we do not terminate it, but return a relaxed solution
+                    print('====> Nan detected, return relaxed solution')
+                    pred_new = pred + 1e-5 * (pred == 0)
+                    relaxed_PS, _ = self.sinkhorn(pred_new, eta, r_in=r_in, rec=True)
+                    z = (1.0 * (pred != 0))
+                    relaxed_PS = relaxed_PS * z
+                    return relaxed_PS, True
+            c = c_new
+            _counter += 1
+        PS *= torch.squeeze(c)
+        PS = PS.T
+        PS *= torch.squeeze(r)
+        PS *= N
+        return PS.detach(), False
+    
+    def linear_rampup(self, current, rampup_length):
+        """Linear rampup"""
+        assert current >= 0 and rampup_length >= 0
+        if current >= rampup_length:
+            return 1.0
+        else:
+            return current / rampup_length
+        
+        
+
+class HTC(Algorithm):
+    """
+    HTC
+    Reference: Long-tailed Partial Label Learning by Head Classiffer and Tail Classiffer Cooperation, AAAI 2024.
+    """
+    class PLL_loss(nn.Module):
+        def __init__(self, train_givenY, mu=0.1):
+            super().__init__()
+            self.mu = mu
+            print('Calculating uniform targets...')
+            # calculate confidence
+            self.device = train_givenY.device
+            self.confidence = train_givenY.float()/train_givenY.sum(dim=1, keepdim=True).to(self.device)
+            self.distribution = self.confidence.sum(0)/self.confidence.sum().to(self.device)
+
+        def forward(self, logits, index, targets=None):
+            log_p = F.log_softmax(logits, dim=1)
+            if targets is None:
+                # using confidence
+                self.confidence = self.confidence.to(log_p.device)
+                final_outputs = log_p * self.confidence[index, :].detach()
+            else:
+                # using given tagets
+                final_outputs = log_p * targets.detach()
+            loss_vec = -final_outputs.sum(dim=1)
+            average_loss = loss_vec.mean()
+            return average_loss, loss_vec
+
+        @torch.no_grad()
+        def get_distribution(self):
+            self.update_distribution()
+            return self.distribution
+
+        @torch.no_grad()
+        def update_distribution(self):
+            self.distribution = self.confidence.sum(0) / self.confidence.sum()
+    
+    
+    class DHNet_Atten(nn.Module):
+        def __init__(self, num_class, encoder):
+            super().__init__()
+
+            self.encoder = encoder
+            self.feat_dim = self.encoder.out_dim
+            
+            self.fc_head = nn.Linear(self.feat_dim, num_class)
+            self.fc_tail = nn.Linear(self.feat_dim, num_class)
+            self.attention = nn.Linear(num_class * 2, 2)
+
+        def forward(self, x):
+            feat = self.encoder(x)
+            logit_tail = self.fc_tail(feat)
+            logit_head = self.fc_head(feat)
+            return logit_head, logit_tail, feat
+
+        def ensemble(self, logit_head, logit_tail, distribution):
+            p1, p2 = F.softmax(logit_head - torch.log(distribution+1e-5), dim=1), F.softmax(logit_tail, dim=1)
+            weights = F.softmax(F.leaky_relu(self.attention(torch.cat([p1, p2], dim=1))), dim=1)
+            w1, w2 = torch.split(F.normalize(weights, p=2), 1, dim=1)
+            pred = F.softmax(w1 * p1 + w2 * p2, dim=1)
+            return pred
+    
+    
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(HTC, self).__init__(model, input_shape, train_givenY, hparams)
+
+        # self.model = model
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        label_confidence = train_givenY.float()/tempY
+        self.confidence = label_confidence.to(train_givenY.device)
+        self.num_class = tempY.shape[1]
+        # self.network = self.DHNet_Atten(self.num_class, self.model.image_encoder)
+        self.network = model
+        self.mu = 0.1
+        self.emp_dist_head = label_confidence
+        self.emp_dist_tail = torch.Tensor([1 / self.num_class for _ in range(self.num_class)])
+        self.loss_fn = self.PLL_loss(train_givenY).to(train_givenY.device)
+        self.optimizer = torch.optim.Adam(
+            self.network.parameters(),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+    def update(self, minibatches, epoch):
+        x, strong_x, Y, _, index = minibatches
+        
+        with autocast():
+            logits_w_head, logits_w_tail, feat_w = self.network(x)
+            logits_s_head, logits_s_tail, feat_s = self.network(strong_x)
+            self.confidence = self.confidence.to(index.device)
+            pseudo_label = self.confidence[index]
+
+            self.eta = 0.9 * self.linear_rampup(epoch, self.hparams["num_epochs"])
+            self.alpha = 0.2 + (0.6 - 0.2) * self.linear_rampup(epoch, self.hparams["num_epochs"])
+            # self.emp_dist_head = self.confidence.sum(0) / self.confidence.sum()
+            loss_head, prediction_head = self.get_loss(x, logits_w_head, logits_s_head, pseudo_label, Y, index, self.network,
+                                                        self.loss_fn, self.emp_dist_head, self.alpha, self.eta, epoch, False)
+
+            logit_adj = F.softmax(logits_w_head - 2 * torch.log(self.emp_dist_head), dim=1)
+            loss_tail, prediction_tail = self.get_loss(x, logits_w_tail, logits_s_tail, logit_adj, Y, index, self.network,
+                                                        self.loss_fn, self.emp_dist_tail, self.alpha, self.eta, epoch, True)
+
+            fusion_pred = self.network.ensemble(logits_w_head.detach(), logits_w_tail.detach(), self.emp_dist_head)
+            fusion_loss = torch.sum(-pseudo_label * torch.log(fusion_pred+1e-8))/fusion_pred.shape[0]
+            ratio = 0.5 * self.linear_rampup(epoch, self.hparams["num_epochs"])
+            loss = loss_head + loss_tail + ratio * fusion_loss
+            self.confidence_move_update(prediction_tail, index)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+        
+        return loss
+    
+    @torch.no_grad()
+    def confidence_move_update(self, temp_un_conf, batch_index, ratio=None):
+        if ratio:
+            self.confidence[batch_index, :] = self.confidence[batch_index, :] * (1 - ratio) + temp_un_conf * ratio
+        else:
+            self.confidence[batch_index, :] = self.confidence[batch_index, :] * (1 - self.mu) + temp_un_conf * self.mu
+        return None
+    
+    def get_high_confidence(self, loss_vec,  pseudo_label_idx, nums_vec):
+        idx_chosen = []
+        chosen_flags = torch.zeros(len(loss_vec)).cuda()
+        # initialize selection flags
+        for j, nums in enumerate(nums_vec):
+            indices = np.where(pseudo_label_idx.cpu().numpy() == j)[0]
+            # torch.where will cause device error
+            if len(indices) == 0:
+                continue
+                # if no sample is assigned this label1 (by argmax), skip
+            loss_vec_j = loss_vec[indices]
+            sorted_idx_j = loss_vec_j.sort()[1].cpu().numpy()
+            partition_j = max(min(int(math.ceil(nums)), len(indices)), 1)
+            # at least one example
+            idx_chosen.append(indices[sorted_idx_j[:partition_j]])
+
+        idx_chosen = np.concatenate(idx_chosen)
+        chosen_flags[idx_chosen] = 1
+
+        idx_chosen = torch.where(chosen_flags == 1)[0]
+        return idx_chosen
+
+    def get_loss(self, X_w, logits_w, logits_s, ce_label, Y, index, model, loss_fn, emp_dist, alpha, eta, epoch,
+                 is_tail):
+        bs = X_w.shape[0]
+        prediction = F.softmax(logits_w.detach(), dim=1)
+        prediction_adj = prediction * Y
+        prediction_adj = prediction_adj / prediction_adj.sum(dim=1, keepdim=True)
+        # re-normalized prediction for unreliable examples
+
+        with autocast():
+            _, ce_loss_vec = loss_fn(logits_w, None, targets=ce_label)
+            loss_pseu, _ = loss_fn(logits_w, index)
+
+            pseudo_label_idx = ce_label.max(dim=1)[1]
+            r_vec = emp_dist * bs * alpha
+            idx_chosen = self.get_high_confidence(ce_loss_vec, pseudo_label_idx, r_vec.tolist())
+
+            if epoch < 1 or idx_chosen.shape[0] == 0:
+                # first epoch, using uniform labels for training
+                #if no samples are chosen
+                loss = loss_pseu
+            else:
+                loss_ce, _ = loss_fn(logits_s[idx_chosen], None, targets=ce_label[idx_chosen])
+                # consistency regularization
+
+                l = np.random.beta(4, 4)
+                l = max(l, 1 - l)
+                X_w_c = X_w[idx_chosen]
+                ce_label_c = ce_label[idx_chosen]
+                idx = torch.randperm(X_w_c.size(0))
+                X_w_c_rand = X_w_c[idx]
+                ce_label_c_rand = ce_label_c[idx]
+                X_w_c_mix = l * X_w_c + (1 - l) * X_w_c_rand
+                ce_label_c_mix = l * ce_label_c + (1 - l) * ce_label_c_rand
+                if is_tail:
+                    _, logits_mix, _ = model(X_w_c_mix)
+                else:
+                    logits_mix, _, _ = model(X_w_c_mix)
+                loss_mix, _ = loss_fn(logits_mix, None, targets=ce_label_c_mix)
+                # mixup training
+                
+                loss = (loss_mix + loss_ce) * eta + loss_pseu
+            return loss, prediction_adj
+    
+    def linear_rampup(self, current, rampup_length):
+        """Linear rampup"""
+        assert current >= 0 and rampup_length >= 0
+        if current >= rampup_length:
+            return 1.0
+        else:
+            return current / rampup_length
