@@ -62,6 +62,57 @@ class Algorithm(torch.nn.Module):
     def predict(self, x):
         raise NotImplementedError
 
+# Example
+class CC(Algorithm):
+    """
+    CC
+    Reference: Provably consistent partial-label learning, NeurIPS 2020.
+    """
+
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(CC, self).__init__(model, input_shape, train_givenY, hparams)
+
+        self.network = model
+        self.optimizer = torch.optim.Adam(
+            self.network.parameters(),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams['weight_decay']
+        )
+
+    def update(self, minibatches):
+        x, strong_x, partial_y, _, index = minibatches
+        loss = self.cc_loss(self.predict(x), partial_y)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return {'loss': loss.item()}
+
+    def cc_loss(self, outputs, partialY):
+        sm_outputs = F.softmax(outputs, dim=1)
+        final_outputs = sm_outputs * partialY
+        average_loss = - torch.log(final_outputs.sum(dim=1)).mean()
+        return average_loss  
+
+    def predict(self, x):
+        return self.network(x)[0]
+
+```
+
+## Add new datasets
+1 Add yaml file in data dir
+Example:
+dataset: "CIFAR100_IR50"
+root: "./data"
+
+2 Add dataloaders for new dataset
+
+
+## Already included algorithms & datasets
+|Type|Algorithms|Datasets|
+|---|---|---|
+|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|Cifar10 Cifar100|
+|LT-PLL|Solar RECORDS HTC|Cifar100 Places-LT ImageNet-LT|
+|IDPLL|VALEN ABLE POP IDGP DIRK CEL|Cifar10 FGVC100 Cub200|
 
 ## Hardware
 
@@ -72,8 +123,8 @@ Most experiments can be reproduced using a single GPU with 20GB of memory (large
 ## Quick Start on the CIFAR-100-LT dataset
 
 ```bash
-# run LIFT on CIFAR-100-LT (with imbalanced ratio=100)
-python main.py -d cifar100_ir100 -m clip_vit_b16 adaptformer True
+# run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)
+python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 adaptformer True
 ```
 
 By running the above command, you can automatically download the CIFAR-100 dataset and run the method (LIFT).
@@ -137,13 +188,13 @@ To reproduce the main result in the paper, please run
 
 ```bash
 # run LIFT on ImageNet-LT
-python main.py -d imagenet_lt -m clip_vit_b16 adaptformer True
+python main.py -d imagenet_lt -m clip_vit_b16 -p 0.1 -l Solar daptformer True
 
 # run LIFT on Places-LT
-python main.py -d places_lt -m clip_vit_b16 adaptformer True
+python main.py -d places_lt -m clip_vit_b16 -p 0.1 -l Solar adaptformer True
 
 # run LIFT on iNaturalist 2018
-python main.py -d inat2018 -m clip_vit_b16_peft adaptformer True num_epochs 20
+python main.py -d inat2018 -m clip_vit_b16_peft -p 0.1 -l Solar adaptformer True num_epochs 20
 ```
 
 For other experiments, please refer to [scripts](scripts) for reproduction commands.
@@ -153,12 +204,16 @@ For other experiments, please refer to [scripts](scripts) for reproduction comma
 To train and test the proposed method on more settings, run
 
 ```bash
-python main.py -d [data] -m [model] [options]
+python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] [options]
 ```
 
 The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`, `inat2018`, `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
 
 The `[model]` can be the name of a .yaml file in [configs/model](configs/model), including `clip_rn50`, `clip_vit_b16`, `in21k_vit_b16`, etc.
+
+The `[partial_rate]` refers to unifrom sampling strategy(uss) when 0 < p < 1; flip probability strategy (fps) when p = 0; instance dependent gengeration when p equal other values.
+
+The `[loss_type]` can be any algorithm in file "algorithms.py"
 
 Note that using only `-d` and `-m` options denotes only fine-tuning the classifier. Please use additional `[options]` for more settings. 
 
@@ -185,7 +240,7 @@ You can also refer to [scripts](scripts) for example commands.
 ## Acknowledgment
 
 We thank the authors for the following repositories for code reference:
-[[OLTR]](https://github.com/zhmiao/OpenLongTailRecognition-OLTR), [[Classifier-Balancing]](https://github.com/facebookresearch/classifier-balancing), [[Dassl]](https://github.com/KaiyangZhou/Dassl.pytorch), [[CoOp]](https://github.com/KaiyangZhou/CoOp).
+
 
 ## Citation
 
