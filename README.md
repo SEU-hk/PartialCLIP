@@ -1,6 +1,6 @@
 # UPB: A-Unified-Partial-label-learning-Benchmark
 
-This is the source code for the paper: [Long-Tail Learning with Foundation Model: Heavy Fine-Tuning Hurts](https://arxiv.org/abs/2309.10019) (ICML 2024).
+This is the source code for the paper.
 
 ## Requirements
 
@@ -33,6 +33,35 @@ ftfy==6.1.1
 regex==2022.7.9
 timm==0.6.12
 ```
+
+## Add new algoritms
+```python
+class Algorithm(torch.nn.Module):
+    """
+    A subclass of Algorithm implements a partial-label learning algorithm.
+    Subclasses should implement the following:
+    - update()
+    - predict()
+    """
+   # initialize an algorithm, including model, hparams, num_data, num_classes
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(Algorithm, self).__init__()
+        self.network = model
+        self.hparams = hparams
+        self.num_data = input_shape[0]
+        self.num_classes = train_givenY.shape[1]
+
+   # update step per minibatch
+    def update(self, minibatches, unlabeled=None):
+        """
+        Perform one update step
+        """
+        raise NotImplementedError
+
+   # model prediction
+    def predict(self, x):
+        raise NotImplementedError
+
 
 ## Hardware
 
