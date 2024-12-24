@@ -120,14 +120,19 @@ Most experiments can be reproduced using a single GPU with 20GB of memory (large
 
 - To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
-## Quick Start on the CIFAR-100-LT dataset
+## Quick Start
 
 ```bash
-# run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)
-python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 adaptformer True
+# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
+python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
+
+# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
+python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
+
+# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
+python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
 
-By running the above command, you can automatically download the CIFAR-100 dataset and run the method (LIFT).
 
 ## Running on Large-scale Long-tailed Datasets
 
