@@ -100,9 +100,8 @@ class CC(Algorithm):
 
 ## Add new datasets
 1 Add yaml file in data dir  
-# Dataset and Root Configuration
-dataset: "CIFAR100_IR50"
-root: "./data"
+- **dataset**: "CIFAR100_IR50"
+- **root**: "./data"
 
 2 Add dataloaders for new dataset
 
