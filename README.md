@@ -99,11 +99,11 @@ class CC(Algorithm):
 ```
 
 ## Add new datasets
-1 Add yaml file in data dir  
+1. Add yaml file in data dir  
 - **dataset**: "CIFAR100_IR50"
 - **root**: "./data"
 
-2 Add dataloaders for new dataset
+2. Add dataloaders for new dataset
 
 
 ## Already included algorithms & datasets
@@ -169,7 +169,6 @@ Put files in the following locations and change the path in the data configure f
     - **Reference**: M. J. Huiskes, M. S. Lew. The MIR Flickr retrieval evaluation. In: Proceedings of the 1st ACM International Conference on Multimedia Information Retrieval, Vancouver, Canada, 2008, 39–43.
     - **Size**: 30.40Mb
  
-# Example
 - Lost
 
 ```
