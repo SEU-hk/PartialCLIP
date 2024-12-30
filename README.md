@@ -239,7 +239,67 @@ Path/To/Dataset
  Download the dataset [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [Caltech-UCSD Birds-200-2011 (CUB-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196] (can be downloaded from torchvision.datasets) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/). 
  Put files in the following locations and change the path in the data configure files in [configs/data](configs/data): 
  
- - Places 
+ - Stanford Dogs120
+```
+Path/To/Stanford Dogs120
+├─ train
+│  ├─ Afghan_hound
+|  |  ├─ n02088094_10074.jpg
+|  |  └─ ......
+│  └─ ......
+└─ val
+   ├─ Afghan_hound
+   |  ├─ n02088094_993.jpg
+   |  └─ ......
+   └─ ......
+```
+
+- Stanford Dogs120
+```
+Path/To/Caltech-UCSD Birds-200-2011 (CUB-200-2011)
+├─ train
+│  ├─ 001.Black_footed_Albatross
+|  |  ├─ Black_Footed_Albatross_0001_796111.jpg
+|  |  └─ ......
+│  └─ ......
+└─ val
+   ├─ 001.Black_footed_Albatross
+   |  ├─ Black_Footed_Albatross_0046_56046.jpg
+   |  └─ ......
+   └─ ......
+```
+
+
+- Stanford Cars196
+```
+Path/To/Stanford Cars196
+├─ train
+│  ├─ 00001_am_1970_ford_mustang_gt.jpg
+|  |  ├─ 00001_am_1970_ford_mustang_gt_0001.jpg
+|  |  └─ ......
+│  └─ ......
+└─ val
+   ├─ 00001_am_1970_ford_mustang_gt.jpg
+   |  ├─ 00001_am_1970_ford_mustang_gt_0043.jpg
+   |  └─ ......
+   └─ ......
+```
+
+
+- FGVC-Aircraft
+```
+Path/To/FGVC-Aircraft
+├─ train
+│  ├─ 00001_airbus_a300.jpg
+|  |  ├─ 00001_airbus_a300_0001.jpg
+|  |  └─ ......
+│  └─ ......
+└─ val
+   ├─ 00001_airbus_a300.jpg
+   |  ├─ 00001_airbus_a300_0035.jpg
+   |  └─ ......
+   └─ ......
+```
 
 
 ### Reproduction
