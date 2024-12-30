@@ -100,8 +100,8 @@ class CC(Algorithm):
 
 ## Add new datasets
 1 Add yaml file in data dir  
-Example:  
-dataset: "CIFAR100_IR50"  
+# Dataset and Root Configuration
+dataset: "CIFAR100_IR50"
 root: "./data"
 
 2 Add dataloaders for new dataset
@@ -116,7 +116,7 @@ root: "./data"
 
 ## Hardware
 
-Most experiments can be reproduced using a single GPU with 20GB of memory (larger models such as ViT-L require more memory).
+Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
 
 - To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
@@ -133,8 +133,56 @@ python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True
 python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
 
+## Running on Real-world PLL Datasets
 
-## Running on Large-scale Long-tailed Datasets
+### Prepare the Dataset
+
+Download the dataset [Tabular](https://palm.seu.edu.cn/zhangml/).
+
+Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
+
+- **FG-NET data**:
+    - **Description**: Facial age estimation from crowd-sourced annotations.
+    - **Reference**: G. Panis, A. Lanitis. An overview of research activities in facial age estimation using the FG-NET aging database. Lecture Notes in Computer Science 8926, Berlin: Springer, 2015, 737-750.
+    - **Size**: 1.98Mb
+- **Lost data**:
+    - **Description**: Automatic face naming from videos.
+    - **Reference**: T. Cour, B. Sapp, B. Taskar. Learning from partial labels. Journal of Machine Learning Research, 12(May): 1501–1536, 2011.
+    - **Size**: 914Kb
+- **MSRCv2 data**:
+    - **Description**: Object classification.
+    - **Reference**: L. Liu, T. Dietterich. A conditional multinomial mixture model for superset label learning. In: Advances in Neural Information Processing Systems 25, Cambridge, MA: MIT Press, 2012, 557–565.
+    - **Size**: 373Kb
+- **BirdSong data**:
+    - **Description**: Bird song classification.
+    - **Reference**: F. Briggs, X. Z. Fern, R. Raich. Rank-loss support instance machines for MIML instance annotation. In: Proceedings of the 18th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, Beijing, China, 2012, 534–542.
+    - **Size**: 1.00Mb
+- **Soccer Player data**:
+    - **Description**: Automatic face naming from images.
+    - **Reference**: Z. Zeng, S. Xiao, K. Jia, T.-H. Chan, S. Gao, D. Xu, Y. Ma. Learning by associating ambiguously labeled images. In: Proceedings of the IEEE Computer Society Conference on Computer Vision and Pattern Recognition, Portland, OR, 2013, 708–715.
+    - **Size**: 35.18Mb
+- **Yahoo! News**:
+    - **Description**: Automatic face naming from images.
+    - **Reference**: M. Guillaumin, J. Verbeek, C. Schmid. Multiple instance metric learning from automatically labeled bags of faces. In: Lecture Notes in Computer Science 6311, Berlin: Springer, 2010, 634–637.
+    - **Size**: 28.04Mb
+- **Mirflickr data**:
+    - **Description**: Web image classification.
+    - **Reference**: M. J. Huiskes, M. S. Lew. The MIR Flickr retrieval evaluation. In: Proceedings of the 1st ACM International Conference on Multimedia Information Retrieval, Vancouver, Canada, 2008, 39–43.
+    - **Size**: 30.40Mb
+ 
+# Example
+- Lost
+
+```
+Path/To/Dataset
+├─ data
+├─ partial-target
+└─ target
+
+```
+
+
+## Running on Large-scale Long-tailed PLL Datasets
 
 ### Prepare the Dataset
 
@@ -186,6 +234,14 @@ Path/To/Dataset
    |  └─ ......
    └─ ......
 ```
+
+## Running on Instance-dependet PLL Datasets 
+ ### Prepare the Dataset 
+ Download the dataset [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [Caltech-UCSD Birds-200-2011 (CUB-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196] (can be downloaded from torchvision.datasets) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/). 
+ Put files in the following locations and change the path in the data configure files in [configs/data](configs/data): 
+ 
+ - Places 
+
 
 ### Reproduction
 
