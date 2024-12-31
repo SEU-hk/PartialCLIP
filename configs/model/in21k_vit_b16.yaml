@@ -16,7 +16,7 @@ micro_batch_size: 128
 lr: 0.01
 weight_decay: 5e-4
 momentum: 0.9
-loss_type: "LA"
+loss_type: "CC"
 classifier: "CosineClassifier"
 
 init_head: "class_mean"

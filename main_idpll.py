@@ -6,8 +6,9 @@ import torch
 
 from utils.config import _C as cfg
 from utils.logger import setup_logger
+from utils.hparams_registry import *
 
-from trainer import Trainer
+from trainer_idpll import Trainer
 
 def main(args):
     cfg_data_file = os.path.join("./configs/data", args.data + ".yaml")
@@ -20,14 +21,14 @@ def main(args):
     cfg.merge_from_list(args.opts)
     cfg['partial_rate'] = args.partial_rate
     cfg['loss_type'] = args.loss_type
-    
-    # path_to_confidence = f'/home/hekuang/LIFT-main/LIFT1/confidence/{cfg.dataset}.pth'
-    # cfg['zsclip'] = torch.load(path_to_confidence)
+    hparams = default_hparams(args.loss_type, args.data)
+    for key, value in hparams.items():
+        cfg[key] = value
     
     # cfg.freeze()
 
     if cfg.output_dir is None:
-        cfg_name = "_".join([args.data, "pr" + str(args.partial_rate), args.model])
+        cfg_name = "_".join([args.data, "pr" + str(args.partial_rate), cfg['loss_type'], args.model])
         opts_name = "".join(["_" + item for item in args.opts])
         cfg.output_dir = os.path.join("./output", cfg_name + opts_name)
     else:
@@ -62,8 +63,8 @@ def main(args):
         trainer.load_model(cfg.model_dir)
     
     if cfg.zero_shot:
-        trainer.test0("train")
-        # trainer.test0()
+        # trainer.test("train")
+        trainer.test()
         return
 
     
