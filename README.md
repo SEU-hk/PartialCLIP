@@ -109,9 +109,9 @@ class CC(Algorithm):
 ## Already included algorithms & datasets
 |Type|Algorithms|Datasets|
 |---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|Cifar10 Cifar100|
-|LT-PLL|Solar RECORDS HTC|Cifar100 Places-LT ImageNet-LT|
-|IDPLL|VALEN ABLE POP IDGP DIRK CEL|Cifar10 FGVC100 Cub200|
+|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 / BirdSong / Lost / Yahoo! News / MSRCv2 / Soccer Player|
+|LT-PLL|Solar RECORDS HTC|CIFAR-100-LT / Places-LT / ImageNet-LT / iNaturalist 2018|
+|IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 
 ## Hardware
 
