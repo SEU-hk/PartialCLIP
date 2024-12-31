@@ -9,6 +9,7 @@ import torch.utils.data as data
 from torchvision.datasets.utils import download_url, list_dir, list_files
 
 
+
 class Dogs(data.Dataset):
     """`Stanford Dogs <http://vision.stanford.edu/aditya86/ImageNetDogs/>`_ Dataset.
     Args:

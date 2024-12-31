@@ -24,6 +24,7 @@ class Cub2011(Dataset):
             raise RuntimeError('Dataset not found or corrupted.' +
                                ' You can use download=True to download it')
 
+
     def _load_metadata(self):
         images = pd.read_csv(os.path.join(self.root, 'CUB_200_2011', 'images.txt'), sep=' ',
                              names=['img_id', 'filepath'])

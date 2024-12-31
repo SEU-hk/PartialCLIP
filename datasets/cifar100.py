@@ -21,6 +21,7 @@ class IMBALANCECIFAR100(torchvision.datasets.CIFAR100):
         self.labels = self.targets
         self.cls_num_list = self.get_cls_num_list()
         self.num_classes = len(self.cls_num_list)
+ 
         
     def get_img_num_per_cls(self, cls_num, imb_factor):
         img_max = len(self.data) / cls_num

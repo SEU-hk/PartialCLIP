@@ -19,7 +19,6 @@ def load_dogs120(cfg, transform_train, transform_test):
     
     # 计算数据集中样本的总数量
     num_instances = len(original_train)
-
     classnames = original_train.classes
  
     # 正确计算类别数量，通过获取所有标签的去重后的集合的长度来确定类别数

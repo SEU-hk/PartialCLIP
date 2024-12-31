@@ -24,6 +24,7 @@ TABULAR_DATASETS = [
     "English"
 ]
 
+
 class Tabular_Dataset(Dataset):
     def __init__(self, root, args=None):
         self.dataset_path = root

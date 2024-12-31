@@ -21,7 +21,6 @@ def load_fgvc100(cfg, transform_train, transform_test):
     
     # 计算数据集中样本的总数量
     num_instances = len(original_train)
-
     classnames = []
     with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/fgvc100.txt', 'r') as file:
         for line in file.readlines():

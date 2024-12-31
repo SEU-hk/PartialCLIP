@@ -9,7 +9,6 @@ import torch.nn as nn
 from datasets.dataset_cub import Cub2011
 from torchvision.datasets.folder import pil_loader
 
-
 def load_cub200(cfg, transform_train, transform_test):
     original_train = Cub2011(root=cfg.root, train=True, transform=transform_train, loader=pil_loader)
     original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
