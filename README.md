@@ -104,7 +104,51 @@ class CC(Algorithm):
 - **root**: "./data"
 
 2. Add dataloaders for new dataset
+```
+def load_dogs120(cfg, transform_train, transform_test):
+    original_train = Dogs(root=cfg.root, train=True, cropped=False, transform=transform_train, download=True)
+    original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
+                                                       shuffle=False, num_workers=20)
+    ori_data, ori_labels = next(iter(original_full_loader))
+    ori_labels = ori_labels.long()
+    
+    # 计算数据集中样本的总数量
+    num_instances = len(original_train)
+    classnames = original_train.classes
+ 
+    # 正确计算类别数量，通过获取所有标签的去重后的集合的长度来确定类别数
+    num_classes = len(classnames)
+    print(num_classes)
 
+    test_dataset = Dogs(root=cfg.root, train=False, cropped=False, transform=transform_test, download=True)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
+
+    model = models.wide_resnet50_2()
+    model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
+    model = model.cuda()
+    model.load_state_dict(
+        torch.load(os.path.expanduser('weights/dogs120.pt'))['model_state_dict'])
+    partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
+
+    temp = torch.zeros(partialY_matrix.shape)
+    temp[torch.arange(partialY_matrix.shape[0]), ori_labels] = 1
+
+    if torch.sum(partialY_matrix * temp) == partialY_matrix.shape[0]:
+        print('data loading done !')
+
+    partial_training_dataset = DOGS160_Partialize(
+        [os.path.join(original_train.images_folder, tup[0]) for tup in original_train._flat_breed_images],
+        [tup[1] for tup in original_train._flat_breed_images], partialY_matrix.float(), ori_labels.float())
+
+    partial_training_dataloader = torch.utils.data.DataLoader(
+        dataset=partial_training_dataset,
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        num_workers=8,
+        drop_last=True
+    )
+    return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
+'''
 
 ## Already included algorithms & datasets
 |Type|Algorithms|Datasets|
