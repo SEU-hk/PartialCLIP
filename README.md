@@ -157,6 +157,13 @@ def load_dogs120(cfg, transform_train, transform_test):
 |LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
 |IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 
+PLL: A instance corresponding to a candidate label set rather than a single label. Two strategies, namely Uniform Sampling Strategy (USS) and Flip Probalbility Sampling Strategy (FPS)(Lv et al., 2020), which randomly generate candidate label sets in PLL, are adopted. 
+
+LT-PLL: The number of instances follows a long-tailed distribution.
+
+IDPLL: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
+
+
 ## Hardware
 
 Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
