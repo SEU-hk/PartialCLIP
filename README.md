@@ -176,42 +176,29 @@ python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True
 python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
 
-## Running on Real-world PLL Datasets
+## Running on PLL Datasets
 
 ### Prepare the Dataset
 
-Download the dataset [Tabular](https://palm.seu.edu.cn/zhangml/).
-
 Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
 
-- **FG-NET data**:
-    - **Description**: Facial age estimation from crowd-sourced annotations.
-    - **Reference**: G. Panis, A. Lanitis. An overview of research activities in facial age estimation using the FG-NET aging database. Lecture Notes in Computer Science 8926, Berlin: Springer, 2015, 737-750.
-    - **Size**: 1.98Mb
-- **Lost data**:
-    - **Description**: Automatic face naming from videos.
-    - **Reference**: T. Cour, B. Sapp, B. Taskar. Learning from partial labels. Journal of Machine Learning Research, 12(May): 1501–1536, 2011.
-    - **Size**: 914Kb
-- **MSRCv2 data**:
-    - **Description**: Object classification.
-    - **Reference**: L. Liu, T. Dietterich. A conditional multinomial mixture model for superset label learning. In: Advances in Neural Information Processing Systems 25, Cambridge, MA: MIT Press, 2012, 557–565.
-    - **Size**: 373Kb
-- **BirdSong data**:
-    - **Description**: Bird song classification.
-    - **Reference**: F. Briggs, X. Z. Fern, R. Raich. Rank-loss support instance machines for MIML instance annotation. In: Proceedings of the 18th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, Beijing, China, 2012, 534–542.
-    - **Size**: 1.00Mb
-- **Soccer Player data**:
-    - **Description**: Automatic face naming from images.
-    - **Reference**: Z. Zeng, S. Xiao, K. Jia, T.-H. Chan, S. Gao, D. Xu, Y. Ma. Learning by associating ambiguously labeled images. In: Proceedings of the IEEE Computer Society Conference on Computer Vision and Pattern Recognition, Portland, OR, 2013, 708–715.
-    - **Size**: 35.18Mb
-- **Yahoo! News**:
-    - **Description**: Automatic face naming from images.
-    - **Reference**: M. Guillaumin, J. Verbeek, C. Schmid. Multiple instance metric learning from automatically labeled bags of faces. In: Lecture Notes in Computer Science 6311, Berlin: Springer, 2010, 634–637.
-    - **Size**: 28.04Mb
-- **Mirflickr data**:
-    - **Description**: Web image classification.
-    - **Reference**: M. J. Huiskes, M. S. Lew. The MIR Flickr retrieval evaluation. In: Proceedings of the 1st ACM International Conference on Multimedia Information Retrieval, Vancouver, Canada, 2008, 39–43.
-    - **Size**: 30.40Mb
+CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks. The following is a detailed introduction in Markdown:
+
+### CIFAR-10 Dataset
+- **Basic Information**:
+    - It consists of 60,000 32x32 color images in 10 classes, with 6,000 images per class. The 10 classes include airplane, automobile, bird, cat, deer, dog, frog, horse, ship and truck.
+    - The dataset is divided into a training set of 50,000 images and a test set of 10,000 images.
+- **Format**: In the Python version, the dataset is stored in pickle files. Each batch file contains a dictionary with two elements: "data" and "labels". "data" is a 10000x3072 numpy array of uint8s, where each row stores a 32x32 color image. The first 1024 entries contain the red channel values, the next 1024 the green, and the final 1024 the blue. "labels" is a list of 10000 numbers in the range 0-9, indicating the label of each image. There is also a "batches.meta" file, which contains a 10-element list "label_names", giving meaningful names to the numeric labels.
+- **Link**: [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+
+### CIFAR-100 Dataset
+- **Basic Information**:
+    - It also contains 60,000 32x32 color images, but is divided into 100 classes, with 600 images per class. Additionally, the 100 classes in the CIFAR-100 are grouped into 20 super-classes, and each image is associated with a "fine" label (the class it is associated with) and a "coarse" label (the superclass it is associated with).
+- **Format**: Similar to the CIFAR-10 dataset, it is also stored in pickle files in the Python version. Each batch file contains a dictionary with "data" and "labels" elements. "data" stores the image data in a specific format, and "labels" is a list of numbers indicating the class labels of the images.
+- **Link**: [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+
+These datasets play an important role in academic research, teaching experiments, and model training, and are very helpful for researchers and developers to study and evaluate image classification algorithms and models.
+
  
 - Lost
 
@@ -221,6 +208,25 @@ Path/To/Dataset
 ├─ partial-target
 └─ target
 
+```
+
+- CIFAR Dataset
+
+```
+Path/To/Dataset
+├─ cifar-10-batches-py
+│  ├─ batches.meta
+│  ├─ data_batch_1
+│  ├─ data_batch_2
+│  ├─ data_batch_3
+│  ├─ data_batch_4
+│  ├─ data_batch_5
+│  └─ test_batch
+├─ cifar-100-python
+│  ├─ meta
+│  ├─ test
+│  └─ train
+└─ README.txt
 ```
 
 
