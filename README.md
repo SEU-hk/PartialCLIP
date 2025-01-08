@@ -104,7 +104,7 @@ class CC(Algorithm):
 - **root**: "./data"
 
 2. Add dataloaders for new dataset
-```
+```python
 def load_dogs120(cfg, transform_train, transform_test):
     original_train = Dogs(root=cfg.root, train=True, cropped=False, transform=transform_train, download=True)
     original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
@@ -148,7 +148,7 @@ def load_dogs120(cfg, transform_train, transform_test):
         drop_last=True
     )
     return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
-'''
+```
 
 ## Already included algorithms & datasets
 |Type|Algorithms|Datasets|
