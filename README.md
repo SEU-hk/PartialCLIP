@@ -153,8 +153,8 @@ def load_dogs120(cfg, transform_train, transform_test):
 ## Already included algorithms & datasets
 |Type|Algorithms|Datasets|
 |---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 / BirdSong / Lost / Yahoo! News / MSRCv2 / Soccer Player|
-|LT-PLL|Solar RECORDS HTC|CIFAR-100-LT / Places-LT / ImageNet-LT / iNaturalist 2018|
+|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
 |IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 
 ## Hardware
@@ -198,17 +198,6 @@ CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision 
 - **Link**: [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 These datasets play an important role in academic research, teaching experiments, and model training, and are very helpful for researchers and developers to study and evaluate image classification algorithms and models.
-
- 
-- Lost
-
-```
-Path/To/Dataset
-├─ data
-├─ partial-target
-└─ target
-
-```
 
 - CIFAR Dataset
 
