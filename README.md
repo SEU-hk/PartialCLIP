@@ -62,197 +62,7 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - `IDGP`: Decompositional Generation Process for Instance-Dependent Partial Label Learning. ICLR 2023 [[paper](https://arxiv.org/abs/2204.03845)]
 - `POP`: Progressive Purification for Instance-Dependent Partial Label Learning. ICML 2023 [[paper](https://arxiv.org/abs/2206.00830)]
 
-## ☄️ how to use
-
-### 🕹️ Clone
-
-Clone this GitHub repository:
-
-```
-git clone https://github.com/SEU-hk/UPB-A-Unified-Partial-label-learning-Benchmark.git
-cd UPB-A-Unified-Partial-label-learning-Benchmark
-```
-
-### 🗂️ Dependencies
-
-* Python 3.8
-* PyTorch 2.0
-* Torchvision 0.15
-* Tensorboard
-
-- Other dependencies are listed in [requirements.txt](requirements.txt).
-
-To install requirements, run:
-
-```sh
-conda create -n lift python=3.8 -y
-conda activate lift
-conda install pytorch==2.0.0 torchvision==0.15.0 pytorch-cuda=11.7 -c pytorch -c nvidia
-conda install tensorboard
-pip install -r requirements.txt
-```
-
-We encourage installing the latest dependencies. If there are any incompatibilities, please install the dependencies with the following versions.
-
-```
-numpy==1.24.3
-scipy==1.10.1
-scikit-learn==1.2.1
-yacs==0.1.8
-tqdm==4.64.1
-ftfy==6.1.1
-regex==2022.7.9
-timm==0.6.12
-```
-
-## Add new algoritms
-```python
-class Algorithm(torch.nn.Module):
-    """
-    A subclass of Algorithm implements a partial-label learning algorithm.
-    Subclasses should implement the following:
-    - update()
-    - predict()
-    """
-   # initialize an algorithm, including model, hparams, num_data, num_classes
-    def __init__(self, model, input_shape, train_givenY, hparams):
-        super(Algorithm, self).__init__()
-        self.network = model
-        self.hparams = hparams
-        self.num_data = input_shape[0]
-        self.num_classes = train_givenY.shape[1]
-
-   # update step per minibatch
-    def update(self, minibatches, unlabeled=None):
-        """
-        Perform one update step
-        """
-        raise NotImplementedError
-
-   # model prediction
-    def predict(self, x):
-        raise NotImplementedError
-
-# Example
-class CC(Algorithm):
-    """
-    CC
-    Reference: Provably consistent partial-label learning, NeurIPS 2020.
-    """
-
-    def __init__(self, model, input_shape, train_givenY, hparams):
-        super(CC, self).__init__(model, input_shape, train_givenY, hparams)
-
-        self.network = model
-        self.optimizer = torch.optim.Adam(
-            self.network.parameters(),
-            lr=self.hparams["lr"],
-            weight_decay=self.hparams['weight_decay']
-        )
-
-    def update(self, minibatches):
-        x, strong_x, partial_y, _, index = minibatches
-        loss = self.cc_loss(self.predict(x), partial_y)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        return {'loss': loss.item()}
-
-    def cc_loss(self, outputs, partialY):
-        sm_outputs = F.softmax(outputs, dim=1)
-        final_outputs = sm_outputs * partialY
-        average_loss = - torch.log(final_outputs.sum(dim=1)).mean()
-        return average_loss  
-
-    def predict(self, x):
-        return self.network(x)[0]
-
-```
-
-## Add new datasets
-1. Add yaml file in data dir  
-- **dataset**: "CIFAR100_IR50"
-- **root**: "./data"
-
-2. Add dataloaders for new dataset
-```python
-def load_dogs120(cfg, transform_train, transform_test):
-    original_train = Dogs(root=cfg.root, train=True, cropped=False, transform=transform_train, download=True)
-    original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
-                                                       shuffle=False, num_workers=20)
-    ori_data, ori_labels = next(iter(original_full_loader))
-    ori_labels = ori_labels.long()
-    
-    # 计算数据集中样本的总数量
-    num_instances = len(original_train)
-    classnames = original_train.classes
- 
-    # 正确计算类别数量，通过获取所有标签的去重后的集合的长度来确定类别数
-    num_classes = len(classnames)
-    print(num_classes)
-
-    test_dataset = Dogs(root=cfg.root, train=False, cropped=False, transform=transform_test, download=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
-
-    model = models.wide_resnet50_2()
-    model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
-    model = model.cuda()
-    model.load_state_dict(
-        torch.load(os.path.expanduser('weights/dogs120.pt'))['model_state_dict'])
-    partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
-
-    temp = torch.zeros(partialY_matrix.shape)
-    temp[torch.arange(partialY_matrix.shape[0]), ori_labels] = 1
-
-    if torch.sum(partialY_matrix * temp) == partialY_matrix.shape[0]:
-        print('data loading done !')
-
-    partial_training_dataset = DOGS160_Partialize(
-        [os.path.join(original_train.images_folder, tup[0]) for tup in original_train._flat_breed_images],
-        [tup[1] for tup in original_train._flat_breed_images], partialY_matrix.float(), ori_labels.float())
-
-    partial_training_dataloader = torch.utils.data.DataLoader(
-        dataset=partial_training_dataset,
-        batch_size=cfg.batch_size,
-        shuffle=True,
-        num_workers=8,
-        drop_last=True
-    )
-    return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
-```
-
-## Already included algorithms & datasets
-|Type|Algorithms|Datasets|
-|---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
-|LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
-|IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
-
-PLL: A instance corresponding to a candidate label set rather than a single label. Two strategies, namely Uniform Sampling Strategy (USS) and Flip Probalbility Sampling Strategy (FPS)(Lv et al., 2020), which randomly generate candidate label sets in PLL, are adopted. 
-
-LT-PLL: The number of instances follows a long-tailed distribution.
-
-IDPLL: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
-
-
-## Hardware
-
-Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
-
-- To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
-
-## 🔑 Quick Start
-
-```bash
-# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
-python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
-
-# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
-python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
-
-# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
-python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
-```
+### 🔎 Datasets
 
 ## Running on PLL Datasets
 
@@ -410,6 +220,121 @@ Path/To/FGVC-Aircraft
    └─ ......
 ```
 
+
+## ☄️ how to use
+
+### 🕹️ Clone
+
+Clone this GitHub repository:
+
+```
+git clone https://github.com/SEU-hk/UPB-A-Unified-Partial-label-learning-Benchmark.git
+cd UPB-A-Unified-Partial-label-learning-Benchmark
+```
+
+### 🗂️ Dependencies
+
+* Python 3.8
+* PyTorch 2.0
+* Torchvision 0.15
+* Tensorboard
+
+- Other dependencies are listed in [requirements.txt](requirements.txt).
+
+To install requirements, run:
+
+```sh
+conda create -n lift python=3.8 -y
+conda activate lift
+conda install pytorch==2.0.0 torchvision==0.15.0 pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install tensorboard
+pip install -r requirements.txt
+```
+
+We encourage installing the latest dependencies. If there are any incompatibilities, please install the dependencies with the following versions.
+
+```
+numpy==1.24.3
+scipy==1.10.1
+scikit-learn==1.2.1
+yacs==0.1.8
+tqdm==4.64.1
+ftfy==6.1.1
+regex==2022.7.9
+timm==0.6.12
+```
+
+
+
+## 🔑 Quick Start
+
+```bash
+# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
+python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
+
+# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
+python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
+
+# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
+python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
+```
+
+### Add new algoritms
+```python
+class Algorithm(torch.nn.Module):
+    """
+    A subclass of Algorithm implements a partial-label learning algorithm.
+    Subclasses should implement the following:
+    - update()
+    - predict()
+    """
+   # initialize an algorithm, including model, hparams, num_data, num_classes
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(Algorithm, self).__init__()
+        self.network = model
+        self.hparams = hparams
+        self.num_data = input_shape[0]
+        self.num_classes = train_givenY.shape[1]
+
+   # update step per minibatch
+    def update(self, minibatches, unlabeled=None):
+        """
+        Perform one update step
+        """
+        raise NotImplementedError
+
+   # model prediction
+    def predict(self, x):
+        raise NotImplementedError
+
+
+### Add new datasets
+1. Add yaml file in data dir  
+- **dataset**: "CIFAR100_IR50"
+- **root**: "./data"
+
+2. Add dataloaders for new dataset
+
+
+### Already included algorithms & datasets
+|Type|Algorithms|Datasets|
+|---|---|---|
+|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
+|IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
+
+**PLL**: A instance corresponding to a candidate label set rather than a single label. 
+
+**LT-PLL**: The number of instances follows a long-tailed distribution.
+
+**IDPLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
+
+
+### Hardware
+
+Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
+
+- To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
 ### Reproduction
 
