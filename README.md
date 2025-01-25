@@ -70,9 +70,9 @@ Put files in the following locations and change the path in the data configure f
 
 CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks.
 
-[CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+- CIFAR-10 [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
-[CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+- CIFAR-100 [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 - CIFAR Dataset
 
@@ -387,6 +387,9 @@ You can also refer to [scripts](scripts) for example commands.
 
 We thank the authors for the following repositories for code reference:
 
+## 🤗 Contact
+
+If there are any questions, please feel free to  propose new features by opening an issue or contact with the author: **Kuang He**([he_k@seu.edu.cn](mailto:he_k@seu.edu.cn)) and **Tong Wei**([zhoudw@lamda.nju.edu.cn](mailto:zhoudw@lamda.nju.edu.cn)). Enjoy the code.
 
 ## Citation
 
