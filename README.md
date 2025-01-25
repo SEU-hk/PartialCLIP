@@ -46,15 +46,19 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 
 **PLL**
 
-- `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
-- 'PRODEN': Progressive Identification of True Labels for Partial-Label Learning. ICML 2020 [[paper](https://arxiv.org/abs/2002.08053)]
-- 'CC': Provably Consistent Partial-Label Learning. NeurIPS 2020 [[paper](https://arxiv.org/abs/2007.08929)]
-- 'LWS': Leveraged Weighted Loss for Partial Label Learning. ICML 2021 [[paper](https://arxiv.org/abs/2106.05731)]
-- 'CAVL': Exploiting Class Activation Value for Partial-Label Learning. ICLR 2022 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
-- 'CRDPLL': Revisiting Consistency Regularization for Deep Partial Label Learning. ICML 2022 [[paper](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)]
-- 'PiCO': PICO: Contrastive Label Disambiguation for Partial Label Learning. ICLR2022 [[paper](https://arxiv.org/pdf/2007.08929)]
-- 'ABS-MAE ABS-GCE': On the Robustness of Average Losses for Partial-Label Learning. TPAMI 2023 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
+- `PRODEN`: Progressive Identification of True Labels for Partial-Label Learning. ICML 2020 [[paper](https://arxiv.org/abs/2002.08053)]
+- `CC`: Provably Consistent Partial-Label Learning. NeurIPS 2020 [[paper](https://arxiv.org/abs/2007.08929)]
+- `LWS`: Leveraged Weighted Loss for Partial Label Learning. ICML 2021 [[paper](https://arxiv.org/abs/2106.05731)]
+- `CAVL`: Exploiting Class Activation Value for Partial-Label Learning. ICLR 2022 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
+- `CRDPLL`: Revisiting Consistency Regularization for Deep Partial Label Learning. ICML 2022 [[paper](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)]
+- `PiCO`: PICO: Contrastive Label Disambiguation for Partial Label Learning. ICLR2022 [[paper](https://arxiv.org/pdf/2007.08929)]
+- `ABS-MAE ABS-GCE`: On the Robustness of Average Losses for Partial-Label Learning. TPAMI 2023 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
 
+**LT-PLL**
+
+- `Solar`: SoLar: Sinkhorn Label Refinery for Imbalanced Partial-Label Learning. NeurIPS 2022 [[paper](https://arxiv.org/abs/2209.10365)]
+- `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
+- `HTC`: Long-tailed Partial Label Learning by Head Classifier and Tail Classifier Cooperation. AAAI 2024 [[paper](https://palm.seu.edu.cn/zhangml/files/AAAI'24c.pdf)]
 
 ## Requirements
 
