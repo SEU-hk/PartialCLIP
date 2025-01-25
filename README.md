@@ -68,15 +68,11 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 
 Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
 
-CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks. The following is a detailed introduction in Markdown:
+CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks.
 
-- CIFAR-10
-- **Link**: [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+[CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
-- CIFAR-100
-- **Link**: [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
-
-These datasets play an important role in academic research, teaching experiments, and model training, and are very helpful for researchers and developers to study and evaluate image classification algorithms and models.
+[CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 - CIFAR Dataset
 
@@ -319,7 +315,7 @@ class Algorithm(torch.nn.Module):
 |LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
 |IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 
-**PLL**: A instance corresponding to a candidate label set rather than a single label. 
+**PLL**: An instance corresponding to a candidate label set rather than a single label. 
 
 **LT-PLL**: The number of instances follows a long-tailed distribution.
 
