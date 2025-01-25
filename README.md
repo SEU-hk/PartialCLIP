@@ -22,6 +22,25 @@ This is the source code for the paper.
   <a href=""><img src="https://img.shields.io/github/last-commit/sun-hailong/LAMDA-PILOT?color=blue"></a>
 </p>
 
+## 🎉 Introduction
+
+Welcome to UPB: a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of PLL (Partial Label Learning), LT-PLL (Long-tailed Partial Label Learning), and IDPLL (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
+
+
+## 📰 What's New
+- [2024-12]🌟 Add [MOS](https://arxiv.org/abs/2412.09441). State-of-the-art method of 2025!
+- [2024-12]🌟 Check out our [latest work](https://arxiv.org/abs/2412.09441) on pre-trained model-based class-incremental learning (**AAAI 2025**)!
+- [2024-10]🌟 Check out our [latest work](https://arxiv.org/abs/2410.00911) on pre-trained model-based domain-incremental learning! 
+- [2024-08]🌟 Check out our [latest work](https://arxiv.org/abs/2303.07338) on pre-trained model-based class-incremental learning (**IJCV 2024**)!
+- [2024-07]🌟 Check out our [rigorous and unified survey](https://arxiv.org/abs/2302.03648) about class-incremental learning, which introduces some memory-agnostic measures with holistic evaluations from multiple aspects (**TPAMI 2024**)!
+- [2024-07]🌟 Check out our [work about all-layer margin in class-incremental learning](https://openreview.net/forum?id=aksdU1KOpT) (**ICML 2024**)!
+- [2024-04]🌟 Check out our [latest survey](https://arxiv.org/abs/2401.16386) on pre-trained model-based continual learning (**IJCAI 2024**)!
+- [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
+- [2024-03]🌟 Check out our [latest work](https://arxiv.org/abs/2403.12030) on pre-trained model-based class-incremental learning (**CVPR 2024**)!
+- [2023-12]🌟 Add RanPAC.
+- [2023-09]🌟 Initial version of UPB is released.
+- [2023-05]🌟 Check out our recent work about [class-incremental learning with vision-language models](https://arxiv.org/abs/2305.19270)!
+- [2024-09]🌟 Fistly, conduct experiments on RECORDS(*LT-PLL*)(**CVPR 2024**) with UPB!
 
 ## Requirements
 
