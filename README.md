@@ -5,8 +5,8 @@ This is the source code for the paper.
 <p align="center">
   <a href="#-introduction">🎉Introduction</a> •
   <a href="#-methods-reproduced">🌟Methods Reproduced</a> •
-  <a href="#-reproduced-results">📝Reproduced Results</a> <br />
   <a href="#%EF%B8%8F-how-to-use">☄️How to Use</a> •
+  <a href="#-quick-start">🔑Quick Start</a> •
   <a href="#-acknowledgments">👨‍🏫Acknowledgments</a> •
   <a href="#-contact">🤗Contact</a>
 </p>
