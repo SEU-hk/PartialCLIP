@@ -28,14 +28,10 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 
 
 ## 📰 What's New
-- [2024-12]🌟 Add [MOS](https://arxiv.org/abs/2412.09441). State-of-the-art method of 2025!
-- [2024-12]🌟 Check out our [latest work](https://arxiv.org/abs/2412.09441) on pre-trained model-based class-incremental learning (**AAAI 2025**)!
-- [2024-10]🌟 Check out our [latest work](https://arxiv.org/abs/2410.00911) on pre-trained model-based domain-incremental learning! 
-- [2024-08]🌟 Check out our [latest work](https://arxiv.org/abs/2303.07338) on pre-trained model-based class-incremental learning (**IJCV 2024**)!
-- [2024-07]🌟 Check out our [rigorous and unified survey](https://arxiv.org/abs/2302.03648) about class-incremental learning, which introduces some memory-agnostic measures with holistic evaluations from multiple aspects (**TPAMI 2024**)!
-- [2024-07]🌟 Check out our [work about all-layer margin in class-incremental learning](https://openreview.net/forum?id=aksdU1KOpT) (**ICML 2024**)!
-- [2024-04]🌟 Check out our [latest survey](https://arxiv.org/abs/2401.16386) on pre-trained model-based continual learning (**IJCAI 2024**)!
-- [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
+- [2024-12]🌟 Add [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [Caltech-UCSD Birds-200-2011 (CUB-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196] (https://www.kaggle.com/datasets/jessicali9530/stanford-cars-dataset) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/) IDPLL datasets!
+- [2024-12]🌟 Add SoTa *IDPLL* baselines, including [ABLE](https://arxiv.org/abs/2209.10365)(**IJCAI 2022**), [IDGP](https://arxiv.org/abs/2204.03845)(**ICLR 2023**). [POP](https://arxiv.org/abs/2206.00830)(**ICLR 2023**)!!
+- [2024-11]🌟 Add [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index) LT-PLL datasets.!
+- [2024-11]🌟 Add SoTa *LT-PLL* baselines, including [Solar](https://arxiv.org/abs/2209.10365)(**ICLR 2022**), [HTC](https://arxiv.org/pdf/2007.08929)(**AAAI 2024**)!
 - [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
 - [2024-10]🌟 Add [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html), [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html) and their long-tailed versions.
 - [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/abs/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
@@ -73,8 +69,8 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 Clone this GitHub repository:
 
 ```
-git clone https://github.com/sun-hailong/LAMDA-PILOT
-cd LAMDA-PILOT
+git clone https://github.com/SEU-hk/UPB-A-Unified-Partial-label-learning-Benchmark.git
+cd UPB-A-Unified-Partial-label-learning-Benchmark
 ```
 
 ### 🗂️ Dependencies
