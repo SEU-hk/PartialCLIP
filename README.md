@@ -60,7 +60,24 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
 - `HTC`: Long-tailed Partial Label Learning by Head Classifier and Tail Classifier Cooperation. AAAI 2024 [[paper](https://palm.seu.edu.cn/zhangml/files/AAAI'24c.pdf)]
 
-## Requirements
+**IDPLL**
+
+- `ABLE`: Ambiguity-Induced Contrastive Learning for Instance-Dependent Partial Label Learning. IJCAI 2022 [[paper](https://www.ijcai.org/proceedings/2022/0502.pdf)]
+- `IDGP`: Decompositional Generation Process for Instance-Dependent Partial Label Learning. ICLR 2023 [[paper](https://arxiv.org/abs/2204.03845)]
+- `POP`: Progressive Purification for Instance-Dependent Partial Label Learning. ICML 2023 [[paper](https://arxiv.org/abs/2206.00830)]
+
+## ☄️ how to use
+
+### 🕹️ Clone
+
+Clone this GitHub repository:
+
+```
+git clone https://github.com/sun-hailong/LAMDA-PILOT
+cd LAMDA-PILOT
+```
+
+### 🗂️ Dependencies
 
 * Python 3.8
 * PyTorch 2.0
