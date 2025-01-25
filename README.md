@@ -241,7 +241,7 @@ Most experiments can be reproduced using a single GPU with 48GB of memory (large
 
 - To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
-## Quick Start
+## 🔑 Quick Start
 
 ```bash
 # PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
@@ -263,16 +263,9 @@ Put files in the following locations and change the path in the data configure f
 CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks. The following is a detailed introduction in Markdown:
 
 ### CIFAR-10 Dataset
-- **Basic Information**:
-    - It consists of 60,000 32x32 color images in 10 classes, with 6,000 images per class. The 10 classes include airplane, automobile, bird, cat, deer, dog, frog, horse, ship and truck.
-    - The dataset is divided into a training set of 50,000 images and a test set of 10,000 images.
-- **Format**: In the Python version, the dataset is stored in pickle files. Each batch file contains a dictionary with two elements: "data" and "labels". "data" is a 10000x3072 numpy array of uint8s, where each row stores a 32x32 color image. The first 1024 entries contain the red channel values, the next 1024 the green, and the final 1024 the blue. "labels" is a list of 10000 numbers in the range 0-9, indicating the label of each image. There is also a "batches.meta" file, which contains a 10-element list "label_names", giving meaningful names to the numeric labels.
 - **Link**: [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 ### CIFAR-100 Dataset
-- **Basic Information**:
-    - It also contains 60,000 32x32 color images, but is divided into 100 classes, with 600 images per class. Additionally, the 100 classes in the CIFAR-100 are grouped into 20 super-classes, and each image is associated with a "fine" label (the class it is associated with) and a "coarse" label (the superclass it is associated with).
-- **Format**: Similar to the CIFAR-10 dataset, it is also stored in pickle files in the Python version. Each batch file contains a dictionary with "data" and "labels" elements. "data" stores the image data in a specific format, and "labels" is a list of numbers indicating the class labels of the images.
 - **Link**: [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 These datasets play an important role in academic research, teaching experiments, and model training, and are very helpful for researchers and developers to study and evaluate image classification algorithms and models.
@@ -473,7 +466,7 @@ Moreover, `[options]` can facilitate modifying the configure options in [utils/c
 
 You can also refer to [scripts](scripts) for example commands.
 
-## Acknowledgment
+## 👨‍🏫 Acknowledgment
 
 We thank the authors for the following repositories for code reference:
 
@@ -482,11 +475,3 @@ We thank the authors for the following repositories for code reference:
 
 If you find this repo useful for your work, please cite as:
 
-```bibtex
-@inproceedings{shi2024longtail,
-  title={Long-Tail Learning with Foundation Model: Heavy Fine-Tuning Hurts},
-  author={Jiang-Xin Shi and Tong Wei and Zhi Zhou and Jie-Jing Shao and Xin-Yan Han and Yu-Feng Li},
-  booktitle={Proceedings of the 41st International Conference on Machine Learning},
-  year={2024}
-}
-```
