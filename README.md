@@ -64,9 +64,7 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 
 ### 🔎 Datasets
 
-## Running on PLL Datasets
-
-### Prepare the Dataset
+### PLL Datasets
 
 Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
 
@@ -100,9 +98,7 @@ Path/To/Dataset
 ```
 
 
-## Running on Large-scale Long-tailed PLL Datasets
-
-### Prepare the Dataset
+### Large-scale Long-tailed PLL Datasets
 
 Download the dataset [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index), and [iNaturalist 2018](https://github.com/visipedia/inat_comp/tree/master/2018).
 
@@ -153,8 +149,8 @@ Path/To/Dataset
    └─ ......
 ```
 
-## Running on Instance-dependet PLL Datasets 
- ### Prepare the Dataset 
+### Instance-dependet PLL Datasets 
+
  Download the dataset [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [Caltech-UCSD Birds-200-2011 (CUB-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196] (can be downloaded from torchvision.datasets) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/). 
  Put files in the following locations and change the path in the data configure files in [configs/data](configs/data): 
  
@@ -306,7 +302,7 @@ class Algorithm(torch.nn.Module):
    # model prediction
     def predict(self, x):
         raise NotImplementedError
-
+```
 
 ### Add new datasets
 1. Add yaml file in data dir  
