@@ -1,4 +1,4 @@
-# UPB: A-Unified-Partial-label-learning-Benchmark
+![image](https://github.com/user-attachments/assets/5dd2017e-950f-4043-86b6-3e43b8897a08)# UPB: A-Unified-Partial-label-learning-Benchmark
 
 This is the source code for the paper.
 
@@ -24,7 +24,7 @@ This is the source code for the paper.
 
 ## 🎉 Introduction
 
-Welcome to (**UPB**): a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of (**PLL 2024**) (Partial Label Learning), (**LT-PLL**) (Long-tailed Partial Label Learning), and (**IDPLL**)IDPLL (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
+Welcome to (**UPB**): a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of (**PLL**) (Partial Label Learning), (**LT-PLL**) (Long-tailed Partial Label Learning), and (**IDPLL**)IDPLL (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
 
 
 ## 📰 What's New
@@ -36,10 +36,10 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - [2024-07]🌟 Check out our [work about all-layer margin in class-incremental learning](https://openreview.net/forum?id=aksdU1KOpT) (**ICML 2024**)!
 - [2024-04]🌟 Check out our [latest survey](https://arxiv.org/abs/2401.16386) on pre-trained model-based continual learning (**IJCAI 2024**)!
 - [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
-- [2024-03]🌟 Check out our [latest work](https://arxiv.org/abs/2403.12030) on pre-trained model-based class-incremental learning (**CVPR 2024**)!
-- [2023-12]🌟 Add RanPAC.
-- [2024-10]🌟 Add SoTa (*PLL*) baselines, including [CC](https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAV](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**), [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**)!
-- [2023-09]🌟 Initial version of UPB is released.
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE][ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
+- [2024-10]🌟 Add [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html), [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html) and their long-tailed versions.
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
+- [2024-09]🌟 Initial version of UPB is released.
 - [2024-09]🌟 Fistly, conduct experiments on [RECORDS](https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**CVPR 2024**) with UPB!
 
 ## Requirements
