@@ -389,7 +389,7 @@ We thank the authors for the following repositories for code reference:
 
 ## 🤗 Contact
 
-If there are any questions, please feel free to  propose new features by opening an issue or contact with the author: **Kuang He**([he_k@seu.edu.cn](mailto:he_k@seu.edu.cn)) and **Tong Wei**([zhoudw@lamda.nju.edu.cn](mailto:zhoudw@lamda.nju.edu.cn)). Enjoy the code.
+If there are any questions, please feel free to  propose new features by opening an issue or contact with the author: **Kuang He**([he_k@seu.edu.cn](mailto:he_k@seu.edu.cn)) and **Tong Wei**([weit@seu.edu.cn](mailto:weit@seu.edu.cn)). Enjoy the code.
 
 ## Citation
 
