@@ -38,9 +38,9 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
 - [2024-03]🌟 Check out our [latest work](https://arxiv.org/abs/2403.12030) on pre-trained model-based class-incremental learning (**CVPR 2024**)!
 - [2023-12]🌟 Add RanPAC.
-- [2024-10]🌟 Add SoTa (*PLL*) baselines, including CC(https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), LWS(https://arxiv.org/abs/2106.05731)(**ICML 2021**), CAVL(https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**), PRODEN(https://arxiv.org/abs/2002.08053)(**ICML 2020**)!
+- [2024-10]🌟 Add SoTa (*PLL*) baselines, including [CC](https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAV](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**), [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**)!
 - [2023-09]🌟 Initial version of UPB is released.
-- [2024-09]🌟 Fistly, conduct experiments on RECORDS(https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**CVPR 2024**) with UPB!
+- [2024-09]🌟 Fistly, conduct experiments on [RECORDS](https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**CVPR 2024**) with UPB!
 
 ## Requirements
 
