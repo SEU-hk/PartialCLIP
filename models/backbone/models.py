@@ -3,9 +3,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from .clip_text import CLIP_Text
-from .peft_vit import Peft_ViT, ViT_Tuner, Peft_ViT_HTC, Peft_ViT_MLP
-from .peft_rn import Peft_RN, RN_Tuner
-from .classifiers import *
+from finetune.peft_vit import Peft_ViT, ViT_Tuner, Peft_ViT_HTC, Peft_ViT_MLP
+from finetune.peft_rn import Peft_RN, RN_Tuner
+from ..head.classifiers import *
 
 class ViT(nn.Module):
     def __init__(self, clip_model):

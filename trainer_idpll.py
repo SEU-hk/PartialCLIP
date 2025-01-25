@@ -36,7 +36,7 @@ from utils.pll_loss import *
 from utils.evaluator import Evaluator, compute_accuracy
 from utils.templates import ZEROSHOT_TEMPLATES
 from utils.visual import *
-from utils.algorithms import *
+from algorithms import *
 
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"

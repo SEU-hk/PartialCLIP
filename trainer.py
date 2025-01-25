@@ -33,10 +33,9 @@ from datasets.cifar100 import *
 from utils.meter import AverageMeter
 from utils.samplers import DownSampler
 from utils.losses import *
-from utils.pll_loss import *
 from utils.evaluator import Evaluator, compute_accuracy
 from utils.templates import ZEROSHOT_TEMPLATES
-from utils.algorithms import *
+from algorithms import *
 # from LIFT2.utils import algorithms
 
 import os
