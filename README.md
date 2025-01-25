@@ -24,7 +24,7 @@ This is the source code for the paper.
 
 ## 🎉 Introduction
 
-Welcome to UPB: a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of PLL (Partial Label Learning), LT-PLL (Long-tailed Partial Label Learning), and IDPLL (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
+Welcome to (**UPB**): a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of (**PLL 2024**) (Partial Label Learning), (**LT-PLL**) (Long-tailed Partial Label Learning), and (**IDPLL**)IDPLL (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
 
 
 ## 📰 What's New
@@ -38,9 +38,9 @@ Welcome to UPB: a unified partial label learning benchmark for classification. T
 - [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
 - [2024-03]🌟 Check out our [latest work](https://arxiv.org/abs/2403.12030) on pre-trained model-based class-incremental learning (**CVPR 2024**)!
 - [2023-12]🌟 Add RanPAC.
+- [2024-10]🌟 Add SoTa (*PLL*) baselines, including CC(https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), LWS(https://arxiv.org/abs/2106.05731)(**ICML 2021**), CAVL(https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**), PRODEN(https://arxiv.org/abs/2002.08053)(**ICML 2020**)!
 - [2023-09]🌟 Initial version of UPB is released.
-- [2023-05]🌟 Check out our recent work about [class-incremental learning with vision-language models](https://arxiv.org/abs/2305.19270)!
-- [2024-09]🌟 Fistly, conduct experiments on RECORDS(*LT-PLL*)(**CVPR 2024**) with UPB!
+- [2024-09]🌟 Fistly, conduct experiments on RECORDS(https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**CVPR 2024**) with UPB!
 
 ## Requirements
 
