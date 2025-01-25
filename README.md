@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/5dd2017e-950f-4043-86b6-3e43b8897a08)# UPB: A-Unified-Partial-label-learning-Benchmark
+# UPB: A-Unified-Partial-label-learning-Benchmark
 
 This is the source code for the paper.
 
@@ -36,11 +36,25 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - [2024-07]🌟 Check out our [work about all-layer margin in class-incremental learning](https://openreview.net/forum?id=aksdU1KOpT) (**ICML 2024**)!
 - [2024-04]🌟 Check out our [latest survey](https://arxiv.org/abs/2401.16386) on pre-trained model-based continual learning (**IJCAI 2024**)!
 - [2024-03]🌟 Add [EASE](https://arxiv.org/abs/2403.12030). State-of-the-art method of 2024!
-- [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE][ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
 - [2024-10]🌟 Add [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html), [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html) and their long-tailed versions.
-- [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/pdf/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/abs/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
 - [2024-09]🌟 Initial version of UPB is released.
-- [2024-09]🌟 Fistly, conduct experiments on [RECORDS](https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**CVPR 2024**) with UPB!
+- [2024-09]🌟 Fistly, conduct experiments on [RECORDS](https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**ICLR 2023**) with UPB!
+
+## 🌟 Methods Reproduced
+
+**PLL**
+
+- `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
+- 'PRODEN': Progressive Identification of True Labels for Partial-Label Learning. ICML 2020 [[paper](https://arxiv.org/abs/2002.08053)]
+- 'CC': Provably Consistent Partial-Label Learning. NeurIPS 2020 [[paper](https://arxiv.org/abs/2007.08929)]
+- 'LWS': Leveraged Weighted Loss for Partial Label Learning. ICML 2021 [[paper](https://arxiv.org/abs/2106.05731)]
+- 'CAVL': Exploiting Class Activation Value for Partial-Label Learning. ICLR 2022 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
+- 'CRDPLL': Revisiting Consistency Regularization for Deep Partial Label Learning. ICML 2022 [[paper](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)]
+- 'PiCO': PICO: Contrastive Label Disambiguation for Partial Label Learning. ICLR2022 [[paper](https://arxiv.org/pdf/2007.08929)]
+- 'ABS-MAE ABS-GCE': On the Robustness of Average Losses for Partial-Label Learning. TPAMI 2023 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
+
 
 ## Requirements
 
