@@ -70,10 +70,10 @@ Put files in the following locations and change the path in the data configure f
 
 CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks. The following is a detailed introduction in Markdown:
 
-### CIFAR-10 Dataset
+- CIFAR-10
 - **Link**: [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
-### CIFAR-100 Dataset
+- CIFAR-100
 - **Link**: [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
 
 These datasets play an important role in academic research, teaching experiments, and model training, and are very helpful for researchers and developers to study and evaluate image classification algorithms and models.
@@ -387,7 +387,7 @@ Moreover, `[options]` can facilitate modifying the configure options in [utils/c
 
 You can also refer to [scripts](scripts) for example commands.
 
-## 👨‍🏫 Acknowledgment
+## 👨‍🏫 Acknowledgments
 
 We thank the authors for the following repositories for code reference:
 
