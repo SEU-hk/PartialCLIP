@@ -260,6 +260,8 @@ timm==0.6.12
 
 ## 🔑 Quick Start
 
+### Reproduction
+
 ```bash
 # PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
 python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
@@ -270,6 +272,47 @@ python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True
 # IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
 python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
+
+For other experiments, please refer to [scripts](scripts) for reproduction commands.
+
+### Detailed Usage
+
+To train and test the proposed method on more settings, run
+
+```bash
+python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] [options]
+```
+
+The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`, `inat2018`, `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
+
+The `[model]` can be the name of a .yaml file in [configs/model](configs/model), including `clip_rn50`, `clip_vit_b16`, `in21k_vit_b16`, etc.
+
+The `[partial_rate]` refers to unifrom sampling strategy(uss) when 0 < p < 1; flip probability strategy (fps) when p = 0; instance dependent gengeration when p equal other values.
+
+The `[loss_type]` can be any algorithm in file "algorithms.py"
+
+Note that using only `-d` and `-m` options denotes only fine-tuning the classifier. Please use additional `[options]` for more settings. 
+
+- To apply lightweight fine-tuning methods, add options like `lora True`, `adaptformer True`, etc.
+
+- To apply test-time ensembling, add `tte True`.
+
+Moreover, `[options]` can facilitate modifying the configure options in [utils/config.py](utils/config.py). Following are some examples.
+
+- To specify the root path of datasets, add `root Path/To/Datasets`.
+
+- To change the output directory, add an option like `output_dir NewExpDir`. Then the results will be saved in `output/NewExpDir`.
+
+- To assign a single GPU (for example, GPU 0), add an option like `gpu 0`.
+
+- To apply gradient accumulation, add `micro_batch_size XX`. This can further reduce GPU memory costs. Note that `XX` should be a divisor of `batch_size`.
+
+- To test an existing model, add `test_only True`. This option will test the model trained by your configure file. To test another model, add an additional option like `model_dir output/AnotherExpDir`.
+
+- To test an existing model on the training set, add `test_train True`.
+
+You can also refer to [scripts](scripts) for example commands.
+
 
 ### Add new algoritms
 ```python
@@ -328,60 +371,6 @@ Most experiments can be reproduced using a single GPU with 48GB of memory (large
 
 - To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
-### Reproduction
-
-To reproduce the main result in the paper, please run
-
-```bash
-# run LIFT on ImageNet-LT
-python main.py -d imagenet_lt -m clip_vit_b16 -p 0.1 -l Solar daptformer True
-
-# run LIFT on Places-LT
-python main.py -d places_lt -m clip_vit_b16 -p 0.1 -l Solar adaptformer True
-
-# run LIFT on iNaturalist 2018
-python main.py -d inat2018 -m clip_vit_b16_peft -p 0.1 -l Solar adaptformer True num_epochs 20
-```
-
-For other experiments, please refer to [scripts](scripts) for reproduction commands.
-
-### Detailed Usage
-
-To train and test the proposed method on more settings, run
-
-```bash
-python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] [options]
-```
-
-The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`, `inat2018`, `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
-
-The `[model]` can be the name of a .yaml file in [configs/model](configs/model), including `clip_rn50`, `clip_vit_b16`, `in21k_vit_b16`, etc.
-
-The `[partial_rate]` refers to unifrom sampling strategy(uss) when 0 < p < 1; flip probability strategy (fps) when p = 0; instance dependent gengeration when p equal other values.
-
-The `[loss_type]` can be any algorithm in file "algorithms.py"
-
-Note that using only `-d` and `-m` options denotes only fine-tuning the classifier. Please use additional `[options]` for more settings. 
-
-- To apply lightweight fine-tuning methods, add options like `lora True`, `adaptformer True`, etc.
-
-- To apply test-time ensembling, add `tte True`.
-
-Moreover, `[options]` can facilitate modifying the configure options in [utils/config.py](utils/config.py). Following are some examples.
-
-- To specify the root path of datasets, add `root Path/To/Datasets`.
-
-- To change the output directory, add an option like `output_dir NewExpDir`. Then the results will be saved in `output/NewExpDir`.
-
-- To assign a single GPU (for example, GPU 0), add an option like `gpu 0`.
-
-- To apply gradient accumulation, add `micro_batch_size XX`. This can further reduce GPU memory costs. Note that `XX` should be a divisor of `batch_size`.
-
-- To test an existing model, add `test_only True`. This option will test the model trained by your configure file. To test another model, add an additional option like `model_dir output/AnotherExpDir`.
-
-- To test an existing model on the training set, add `test_train True`.
-
-You can also refer to [scripts](scripts) for example commands.
 
 ## 👨‍🏫 Acknowledgments
 
