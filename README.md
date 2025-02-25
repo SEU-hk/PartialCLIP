@@ -2,187 +2,99 @@
 
 This is the source code for the paper.
 
-## Requirements
+<p align="center">
+  <a href="#-introduction">🎉Introduction</a> •
+  <a href="#-methods-reproduced">🌟Methods Reproduced</a> •
+  <a href="#%EF%B8%8F-how-to-use">☄️How to Use</a> •
+  <a href="#-quick-start">🔑Quick Start</a> •
+  <a href="#-acknowledgments">👨‍🏫Acknowledgments</a> •
+  <a href="#-contact">🤗Contact</a>
+</p>
 
-* Python 3.8
-* PyTorch 2.0
-* Torchvision 0.15
-* Tensorboard
+---
 
-- Other dependencies are listed in [requirements.txt](requirements.txt).
+<p align="center">
+  <a href=""><img src="https://img.shields.io/badge/PILOT-v1.0-darkcyan"></a>
+  <a href='https://arxiv.org/abs/2309.07117'><img src='https://img.shields.io/badge/Arxiv-2309.07117-b31b1b.svg?logo=arXiv'></a>
+  <a href=""><img src="https://img.shields.io/github/stars/sun-hailong/LAMDA-PILOT?color=4fb5ee"></a>
+  <a href=""><img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fsun-hailong%2FLAMDA-PILOT&count_bg=%23FFA500&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=visitors&edge_flat=false"></a>
+  <a href=""><img src="https://black.readthedocs.io/en/stable/_static/license.svg"></a>
+  <a href=""><img src="https://img.shields.io/github/last-commit/sun-hailong/LAMDA-PILOT?color=blue"></a>
+</p>
 
-To install requirements, run:
+## 🎉 Introduction
 
-```sh
-conda create -n lift python=3.8 -y
-conda activate lift
-conda install pytorch==2.0.0 torchvision==0.15.0 pytorch-cuda=11.7 -c pytorch -c nvidia
-conda install tensorboard
-pip install -r requirements.txt
-```
-
-We encourage installing the latest dependencies. If there are any incompatibilities, please install the dependencies with the following versions.
-
-```
-numpy==1.24.3
-scipy==1.10.1
-scikit-learn==1.2.1
-yacs==0.1.8
-tqdm==4.64.1
-ftfy==6.1.1
-regex==2022.7.9
-timm==0.6.12
-```
-
-## Add new algoritms
-```python
-class Algorithm(torch.nn.Module):
-    """
-    A subclass of Algorithm implements a partial-label learning algorithm.
-    Subclasses should implement the following:
-    - update()
-    - predict()
-    """
-   # initialize an algorithm, including model, hparams, num_data, num_classes
-    def __init__(self, model, input_shape, train_givenY, hparams):
-        super(Algorithm, self).__init__()
-        self.network = model
-        self.hparams = hparams
-        self.num_data = input_shape[0]
-        self.num_classes = train_givenY.shape[1]
-
-   # update step per minibatch
-    def update(self, minibatches, unlabeled=None):
-        """
-        Perform one update step
-        """
-        raise NotImplementedError
-
-   # model prediction
-    def predict(self, x):
-        raise NotImplementedError
-
-# Example
-class CC(Algorithm):
-    """
-    CC
-    Reference: Provably consistent partial-label learning, NeurIPS 2020.
-    """
-
-    def __init__(self, model, input_shape, train_givenY, hparams):
-        super(CC, self).__init__(model, input_shape, train_givenY, hparams)
-
-        self.network = model
-        self.optimizer = torch.optim.Adam(
-            self.network.parameters(),
-            lr=self.hparams["lr"],
-            weight_decay=self.hparams['weight_decay']
-        )
-
-    def update(self, minibatches):
-        x, strong_x, partial_y, _, index = minibatches
-        loss = self.cc_loss(self.predict(x), partial_y)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        return {'loss': loss.item()}
-
-    def cc_loss(self, outputs, partialY):
-        sm_outputs = F.softmax(outputs, dim=1)
-        final_outputs = sm_outputs * partialY
-        average_loss = - torch.log(final_outputs.sum(dim=1)).mean()
-        return average_loss  
-
-    def predict(self, x):
-        return self.network(x)[0]
-
-```
-
-## Add new datasets
-1. Add yaml file in data dir  
-- **dataset**: "CIFAR100_IR50"
-- **root**: "./data"
-
-2. Add dataloaders for new dataset
+Welcome to (**UPB**): a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of **PLL**(Partial Label Learning), **LT-PLL** (Long-tailed Partial Label Learning), and **IDPLL** (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
 
 
-## Already included algorithms & datasets
-|Type|Algorithms|Datasets|
-|---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|Cifar10 Cifar100|
-|LT-PLL|Solar RECORDS HTC|Cifar100 Places-LT ImageNet-LT|
-|IDPLL|VALEN ABLE POP IDGP DIRK CEL|Cifar10 FGVC100 Cub200|
+## 📰 What's New
+- [2024-12]🌟 Add [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [CUB-200-2011](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196](https://www.kaggle.com/datasets/jessicali9530/stanford-cars-dataset) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/) IDPLL datasets!
+- [2024-12]🌟 Add SoTa *IDPLL* baselines, including [ABLE](https://arxiv.org/abs/2209.10365)(**IJCAI 2022**), [IDGP](https://arxiv.org/abs/2204.03845)(**ICLR 2023**). [POP](https://arxiv.org/abs/2206.00830)(**ICLR 2023**)!!
+- [2024-11]🌟 Add [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index) LT-PLL datasets!
+- [2024-11]🌟 Add SoTa *LT-PLL* baselines, including [Solar](https://arxiv.org/abs/2209.10365)(**ICLR 2022**), [HTC](https://arxiv.org/pdf/2007.08929)(**AAAI 2024**)!
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
+- [2024-10]🌟 Add [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html), [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html) and their long-tailed versions.
+- [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/abs/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
+- [2024-09]🌟 Initial version of UPB is released.
+- [2024-09]🌟 Fistly, conduct experiments on [RECORDS](https://arxiv.org/abs/2302.05080)(*LT-PLL*)(**ICLR 2023**) with UPB!
 
-## Hardware
+## 🌟 Methods Reproduced
 
-Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
+**PLL**
 
-- To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
+- `PRODEN`: Progressive Identification of True Labels for Partial-Label Learning. ICML 2020 [[paper](https://arxiv.org/abs/2002.08053)]
+- `CC`: Provably Consistent Partial-Label Learning. NeurIPS 2020 [[paper](https://arxiv.org/abs/2007.08929)]
+- `LWS`: Leveraged Weighted Loss for Partial Label Learning. ICML 2021 [[paper](https://arxiv.org/abs/2106.05731)]
+- `CAVL`: Exploiting Class Activation Value for Partial-Label Learning. ICLR 2022 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
+- `CRDPLL`: Revisiting Consistency Regularization for Deep Partial Label Learning. ICML 2022 [[paper](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)]
+- `PiCO`: PICO: Contrastive Label Disambiguation for Partial Label Learning. ICLR2022 [[paper](https://arxiv.org/pdf/2007.08929)]
+- `ABS-MAE ABS-GCE`: On the Robustness of Average Losses for Partial-Label Learning. TPAMI 2023 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
 
-## Quick Start
+**LT-PLL**
 
-```bash
-# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
-python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
+- `Solar`: SoLar: Sinkhorn Label Refinery for Imbalanced Partial-Label Learning. NeurIPS 2022 [[paper](https://arxiv.org/abs/2209.10365)]
+- `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
+- `HTC`: Long-tailed Partial Label Learning by Head Classifier and Tail Classifier Cooperation. AAAI 2024 [[paper](https://palm.seu.edu.cn/zhangml/files/AAAI'24c.pdf)]
 
-# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
-python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
+**IDPLL**
 
-# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
-python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
-```
+- `ABLE`: Ambiguity-Induced Contrastive Learning for Instance-Dependent Partial Label Learning. IJCAI 2022 [[paper](https://www.ijcai.org/proceedings/2022/0502.pdf)]
+- `IDGP`: Decompositional Generation Process for Instance-Dependent Partial Label Learning. ICLR 2023 [[paper](https://arxiv.org/abs/2204.03845)]
+- `POP`: Progressive Purification for Instance-Dependent Partial Label Learning. ICML 2023 [[paper](https://arxiv.org/abs/2206.00830)]
 
-## Running on Real-world PLL Datasets
+### 🔎 Datasets
 
-### Prepare the Dataset
-
-Download the dataset [Tabular](https://palm.seu.edu.cn/zhangml/).
+### PLL Datasets
 
 Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
 
-- **FG-NET data**:
-    - **Description**: Facial age estimation from crowd-sourced annotations.
-    - **Reference**: G. Panis, A. Lanitis. An overview of research activities in facial age estimation using the FG-NET aging database. Lecture Notes in Computer Science 8926, Berlin: Springer, 2015, 737-750.
-    - **Size**: 1.98Mb
-- **Lost data**:
-    - **Description**: Automatic face naming from videos.
-    - **Reference**: T. Cour, B. Sapp, B. Taskar. Learning from partial labels. Journal of Machine Learning Research, 12(May): 1501–1536, 2011.
-    - **Size**: 914Kb
-- **MSRCv2 data**:
-    - **Description**: Object classification.
-    - **Reference**: L. Liu, T. Dietterich. A conditional multinomial mixture model for superset label learning. In: Advances in Neural Information Processing Systems 25, Cambridge, MA: MIT Press, 2012, 557–565.
-    - **Size**: 373Kb
-- **BirdSong data**:
-    - **Description**: Bird song classification.
-    - **Reference**: F. Briggs, X. Z. Fern, R. Raich. Rank-loss support instance machines for MIML instance annotation. In: Proceedings of the 18th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, Beijing, China, 2012, 534–542.
-    - **Size**: 1.00Mb
-- **Soccer Player data**:
-    - **Description**: Automatic face naming from images.
-    - **Reference**: Z. Zeng, S. Xiao, K. Jia, T.-H. Chan, S. Gao, D. Xu, Y. Ma. Learning by associating ambiguously labeled images. In: Proceedings of the IEEE Computer Society Conference on Computer Vision and Pattern Recognition, Portland, OR, 2013, 708–715.
-    - **Size**: 35.18Mb
-- **Yahoo! News**:
-    - **Description**: Automatic face naming from images.
-    - **Reference**: M. Guillaumin, J. Verbeek, C. Schmid. Multiple instance metric learning from automatically labeled bags of faces. In: Lecture Notes in Computer Science 6311, Berlin: Springer, 2010, 634–637.
-    - **Size**: 28.04Mb
-- **Mirflickr data**:
-    - **Description**: Web image classification.
-    - **Reference**: M. J. Huiskes, M. S. Lew. The MIR Flickr retrieval evaluation. In: Proceedings of the 1st ACM International Conference on Multimedia Information Retrieval, Vancouver, Canada, 2008, 39–43.
-    - **Size**: 30.40Mb
- 
-- Lost
+CIFAR-10 and CIFAR-100 datasets are widely used in the field of computer vision for image classification tasks.
+
+- CIFAR-10 [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+
+- CIFAR-100 [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html)
+
+- CIFAR Dataset
 
 ```
 Path/To/Dataset
-├─ data
-├─ partial-target
-└─ target
-
+├─ cifar-10-batches-py
+│  ├─ batches.meta
+│  ├─ data_batch_1
+│  ├─ data_batch_2
+│  ├─ data_batch_3
+│  ├─ data_batch_4
+│  ├─ data_batch_5
+│  └─ test_batch
+├─ cifar-100-python
+│  ├─ meta
+│  ├─ test
+│  └─ train
+└─ README.txt
 ```
 
 
-## Running on Large-scale Long-tailed PLL Datasets
-
-### Prepare the Dataset
+### Large-scale Long-tailed PLL Datasets
 
 Download the dataset [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index), and [iNaturalist 2018](https://github.com/visipedia/inat_comp/tree/master/2018).
 
@@ -233,8 +145,8 @@ Path/To/Dataset
    └─ ......
 ```
 
-## Running on Instance-dependet PLL Datasets 
- ### Prepare the Dataset 
+### Instance-dependet PLL Datasets 
+
  Download the dataset [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [Caltech-UCSD Birds-200-2011 (CUB-200-2011)](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196] (can be downloaded from torchvision.datasets) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/). 
  Put files in the following locations and change the path in the data configure files in [configs/data](configs/data): 
  
@@ -301,19 +213,64 @@ Path/To/FGVC-Aircraft
 ```
 
 
+## ☄️ how to use
+
+### 🕹️ Clone
+
+Clone this GitHub repository:
+
+```
+git clone https://github.com/SEU-hk/UPB-A-Unified-Partial-label-learning-Benchmark.git
+cd UPB-A-Unified-Partial-label-learning-Benchmark
+```
+
+### 🗂️ Dependencies
+
+* Python 3.8
+* PyTorch 2.0
+* Torchvision 0.15
+* Tensorboard
+
+- Other dependencies are listed in [requirements.txt](requirements.txt).
+
+To install requirements, run:
+
+```sh
+conda create -n lift python=3.8 -y
+conda activate lift
+conda install pytorch==2.0.0 torchvision==0.15.0 pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install tensorboard
+pip install -r requirements.txt
+```
+
+We encourage installing the latest dependencies. If there are any incompatibilities, please install the dependencies with the following versions.
+
+```
+numpy==1.24.3
+scipy==1.10.1
+scikit-learn==1.2.1
+yacs==0.1.8
+tqdm==4.64.1
+ftfy==6.1.1
+regex==2022.7.9
+timm==0.6.12
+```
+
+
+
+## 🔑 Quick Start
+
 ### Reproduction
 
-To reproduce the main result in the paper, please run
-
 ```bash
-# run LIFT on ImageNet-LT
-python main.py -d imagenet_lt -m clip_vit_b16 -p 0.1 -l Solar daptformer True
+# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
+python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
 
-# run LIFT on Places-LT
-python main.py -d places_lt -m clip_vit_b16 -p 0.1 -l Solar adaptformer True
+# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
+python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
 
-# run LIFT on iNaturalist 2018
-python main.py -d inat2018 -m clip_vit_b16_peft -p 0.1 -l Solar adaptformer True num_epochs 20
+# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
+python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
 
 For other experiments, please refer to [scripts](scripts) for reproduction commands.
@@ -356,20 +313,74 @@ Moreover, `[options]` can facilitate modifying the configure options in [utils/c
 
 You can also refer to [scripts](scripts) for example commands.
 
-## Acknowledgment
+
+### Add new algoritms
+```python
+class Algorithm(torch.nn.Module):
+    """
+    A subclass of Algorithm implements a partial-label learning algorithm.
+    Subclasses should implement the following:
+    - update()
+    - predict()
+    """
+   # initialize an algorithm, including model, hparams, num_data, num_classes
+    def __init__(self, model, input_shape, train_givenY, hparams):
+        super(Algorithm, self).__init__()
+        self.network = model
+        self.hparams = hparams
+        self.num_data = input_shape[0]
+        self.num_classes = train_givenY.shape[1]
+
+   # update step per minibatch
+    def update(self, minibatches, unlabeled=None):
+        """
+        Perform one update step
+        """
+        raise NotImplementedError
+
+   # model prediction
+    def predict(self, x):
+        raise NotImplementedError
+```
+
+### Add new datasets
+1. Add yaml file in data dir  
+- **dataset**: "CIFAR100_IR50"
+- **root**: "./data"
+
+2. Add dataloaders for new dataset
+
+
+### Already included algorithms & datasets
+|Type|Algorithms|Datasets|
+|---|---|---|
+|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
+|IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
+
+**PLL**: An instance corresponding to a candidate label set rather than a single label. 
+
+**LT-PLL**: The number of instances follows a long-tailed distribution.
+
+**IDPLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
+
+
+### Hardware
+
+Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
+
+- To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
+
+
+## 👨‍🏫 Acknowledgments
 
 We thank the authors for the following repositories for code reference:
 
+## 🤗 Contact
+
+If there are any questions, please feel free to  propose new features by opening an issue or contact with the author: **Kuang He**([he_k@seu.edu.cn](mailto:he_k@seu.edu.cn)) and **Tong Wei**([weit@seu.edu.cn](mailto:weit@seu.edu.cn)). Enjoy the code.
 
 ## Citation
 
 If you find this repo useful for your work, please cite as:
 
-```bibtex
-@inproceedings{shi2024longtail,
-  title={Long-Tail Learning with Foundation Model: Heavy Fine-Tuning Hurts},
-  author={Jiang-Xin Shi and Tong Wei and Zhi Zhou and Jie-Jing Shao and Xin-Yan Han and Yu-Feng Li},
-  booktitle={Proceedings of the 41st International Conference on Machine Learning},
-  year={2024}
-}
-```
