@@ -1,0 +1,2 @@
+dataset: "PLCIFAR10_Aggregate"
+root: "./data"
