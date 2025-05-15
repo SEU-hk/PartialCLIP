@@ -1,11 +1,15 @@
 import os
 from .lt_data import LT_Dataset
 import torch
+import json
 import numpy as np
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
+from utils.candidate_set_generation import *
 from torchvision import transforms
 from .randaugment import RandomAugment
 from PIL import Image
+from .__init__ import *
 
 class Places_LT(LT_Dataset):
     classnames_txt = "./datasets/Places_LT/classnames.txt"
@@ -72,3 +76,52 @@ class Places_Augmentention(Dataset):
         each_true_label = self.true_labels[index]
         
         return each_image_w, each_image_s, each_label, each_true_label, index
+    
+    
+    
+def load_places_lt(cfg, transform_train, transform_test, transform_plain):
+    root = cfg.root
+    
+    train_dataset = Places_LT(root, train=True, transform=transform_train)
+    train_init_dataset = Places_LT(root, train=True, transform=transform_plain)
+    test_dataset = Places_LT(root, train=False, transform=transform_test)
+
+    train_dataset = train_init_dataset
+    num_classes = train_dataset.num_classes
+    print("num_classes:", num_classes)
+    num_instances = len(train_dataset.labels)
+    cls_num_list = train_dataset.cls_num_list
+    print(max(cls_num_list), min(cls_num_list))
+    classnames = train_dataset.classnames
+
+    data, labels = train_dataset.img_path, torch.Tensor(train_dataset.labels).long()
+
+    if 0 < cfg.partial_rate < 1:
+        partialY = fps(labels, cfg.partial_rate)
+    elif cfg.partial_rate == 0:
+        partialY = uss(labels)
+
+    temp = torch.zeros(partialY.shape)
+    temp[torch.arange(partialY.shape[0]), labels] = 1
+    if torch.sum(partialY * temp) == partialY.shape[0]:
+        print('partialY correctly loaded')
+    else:
+        print('inconsistent permutation')
+    print('Average candidate num: ', partialY.sum(1).mean())
+
+    test_loader = DataLoader(test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.num_workers, pin_memory=True, drop_last=False)
+
+    train_test_loader = DataLoader(train_init_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.num_workers, pin_memory=True)
+
+    partialY[torch.arange(partialY.shape[0]), labels] = 1
+
+    if cfg.pre_filter == True:
+        partialY, data, labels = pre_filter(cfg, partialY, data, labels)
+
+    train_givenY = Places_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
+
+    print('Average candidate num: ', partialY.sum(1).mean())
+
+    train_loader = DataLoader(dataset=train_givenY, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers, pin_memory=True, drop_last=False)
+
+    return train_loader, train_test_loader, partialY, test_loader, num_instances, num_classes, classnames, cls_num_list

@@ -978,13 +978,12 @@ class Solar(Algorithm):
         return self.network(x)[0]
     
     def sinkhorn(self, pred, eta, r_in=None, rec=False):
-        # 检查 pred 矩阵是否包含 NaN 或无穷大的值
         if torch.isnan(pred).any() or torch.isinf(pred).any():
-            print("pred 矩阵包含 NaN 或无穷大的值，将其替换为合理值。")
+            print("pred contains NaN!")
             
         if r_in is not None:
             if torch.isnan(r_in).any() or torch.isinf(r_in).any():
-                print("r_in 向量包含 NaN 或无穷大的值，将其替换为合理值。")
+                print("r_in contains NaN!")
                             
         PS = pred.detach()
         K = PS.shape[1]

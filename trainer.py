@@ -25,6 +25,10 @@ from datasets.imagenet_lt import *
 from datasets.places_lt import *
 from datasets.cifar10 import *
 from datasets.cifar100 import *
+from datasets.fgvc100 import *
+from datasets.cub200 import *
+from datasets.dogs120 import *
+from datasets.cars196 import *
 
 from utils.meter import AverageMeter
 from utils.samplers import DownSampler

@@ -44,9 +44,9 @@ def idg(targets, data, cfg):
         return label
 
     def create_model(ds, feature, c):
-        from partial_models.resnet import resnet
-        from partial_models.mlp import mlp_phi
-        from partial_models.wide_resnet import WideResNet
+        from models.partial_models.resnet import resnet
+        from models.partial_models.mlp import mlp_phi
+        from models.partial_models.wide_resnet import WideResNet
         if ds in ['kmnist', 'fmnist']:
             model = mlp_phi(feature, c)
         elif ds in ['CIFAR10']:

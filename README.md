@@ -1,4 +1,4 @@
-# UPB: A-Unified-Partial-label-learning-Benchmark
+# Tuning the Right Foundation Models is What you Need for Partial Label Learning
 
 This is the source code for the paper.
 
@@ -15,12 +15,13 @@ This is the source code for the paper.
 
 ## 🎉 Introduction
 
-Welcome to (**UPB**): a unified partial label learning benchmark for classification. The UPB framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of **PLL**(Partial Label Learning), **LT-PLL** (Long-tailed Partial Label Learning), and **IDPLL** (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
+Welcome to (**PartialCLIP**): a unified partial label learning benchmark for classification. The PartialCLIP framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of **PLL**(Partial Label Learning), **LT-PLL** (Long-tailed Partial Label Learning), and **ID-PLL** (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
 
 
 ## 📰 What's New
-- [2024-12]🌟 Add [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [CUB-200-2011](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196](https://www.kaggle.com/datasets/jessicali9530/stanford-cars-dataset) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/) IDPLL datasets!
-- [2024-12]🌟 Add SoTa *IDPLL* baselines, including [ABLE](https://arxiv.org/abs/2209.10365)(**IJCAI 2022**), [IDGP](https://arxiv.org/abs/2204.03845)(**ICLR 2023**). [POP](https://arxiv.org/abs/2206.00830)(**ICLR 2023**)!!
+- [2025-05]🌟 Our work has been submitted to The Thirty-ninth Annual Conference on Neural Information Processing Systems (NeurIPS 2025)! 
+- [2024-12]🌟 Add [Stanford Dogs120](http://vision.stanford.edu/aditya86/ImageNetDogs/), [CUB-200-2011](https://www.vision.caltech.edu/datasets/cub_200_2011/), [Stanford Cars196](https://www.kaggle.com/datasets/jessicali9530/stanford-cars-dataset) and [FGVC-Aircraft](https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/) ID-PLL datasets!
+- [2024-12]🌟 Add SoTa *ID-PLL* baselines, including [ABLE](https://arxiv.org/abs/2209.10365)(**IJCAI 2022**), [IDGP](https://arxiv.org/abs/2204.03845)(**ICLR 2023**). [POP](https://arxiv.org/abs/2206.00830)(**ICLR 2023**)!!
 - [2024-11]🌟 Add [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index) LT-PLL datasets!
 - [2024-11]🌟 Add SoTa *LT-PLL* baselines, including [Solar](https://arxiv.org/abs/2209.10365)(**ICLR 2022**), [HTC](https://arxiv.org/pdf/2007.08929)(**AAAI 2024**)!
 - [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
@@ -47,7 +48,7 @@ Welcome to (**UPB**): a unified partial label learning benchmark for classificat
 - `RECORDS`: Long-Tailed Partial Label Learning via Dynamic Rebalancing. ICLR 2023 [[paper](https://arxiv.org/abs/2302.05080)]
 - `HTC`: Long-tailed Partial Label Learning by Head Classifier and Tail Classifier Cooperation. AAAI 2024 [[paper](https://palm.seu.edu.cn/zhangml/files/AAAI'24c.pdf)]
 
-**IDPLL**
+**ID-PLL**
 
 - `ABLE`: Ambiguity-Induced Contrastive Learning for Instance-Dependent Partial Label Learning. IJCAI 2022 [[paper](https://www.ijcai.org/proceedings/2022/0502.pdf)]
 - `IDGP`: Decompositional Generation Process for Instance-Dependent Partial Label Learning. ICLR 2023 [[paper](https://arxiv.org/abs/2204.03845)]
@@ -260,7 +261,7 @@ python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True
 # LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
 python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
 
-# IDPLL: run LIFT on fgvc100 (with pretrained wrn)   
+# ID-PLL: run LIFT on fgvc100 (with pretrained wrn)   
 python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
 
@@ -271,7 +272,7 @@ For other experiments, please refer to [scripts](scripts) for reproduction comma
 To train and test the proposed method on more settings, run
 
 ```bash
-python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] [options]
+python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] -e [num_epochs] -g [gpu] -lr [learning_rate] [options]
 ```
 
 The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`, `inat2018`, `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
@@ -281,6 +282,12 @@ The `[model]` can be the name of a .yaml file in [configs/model](configs/model),
 The `[partial_rate]` refers to unifrom sampling strategy(uss) when 0 < p < 1; flip probability strategy (fps) when p = 0; instance dependent gengeration when p equal other values.
 
 The `[loss_type]` can be any algorithm in file "algorithms.py"
+
+The `[num_epochs]` can be epoches during training for convergence.
+
+The `[gpu]` specify which GPU to run on.
+
+The `[learning_rate]` specify the learning rate especially for full fine-tuning.
 
 Note that using only `-d` and `-m` options denotes only fine-tuning the classifier. Please use additional `[options]` for more settings. 
 
@@ -345,15 +352,15 @@ class Algorithm(torch.nn.Module):
 ### Already included algorithms & datasets
 |Type|Algorithms|Datasets|
 |---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN PiCO ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|PLL|CC LWS CAVL CORR PRODEN ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
 |LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
-|IDPLL|VALEN ABLE POP IDGP DIRK CEL|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
+|ID-PLL|ABLE POP IDGP|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 
 **PLL**: An instance corresponding to a candidate label set rather than a single label. 
 
 **LT-PLL**: The number of instances follows a long-tailed distribution.
 
-**IDPLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
+**ID-PLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
 
 
 ### Hardware

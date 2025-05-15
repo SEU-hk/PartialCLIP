@@ -3,17 +3,12 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 def visualize(partialY, labels):
-    # 1. 统计整行为0的比例
     zero_rows = torch.all(partialY == 0, dim=1)
     zero_row_ratio = zero_rows.float().mean()
     N, K = partialY.shape[0], partialY.shape[1]
 
-    # 2. 统计每行1的个数
     ones_count = torch.sum(partialY, dim=1)
-
     print('Average candidate num: ', ones_count.mean())
-    
-    # 打印zero_row_ratio
     print(f'empty candidate set ratio: {zero_row_ratio}')
 
     labels_in_mask = (partialY[torch.arange(partialY.shape[0]), labels.squeeze()] == 1).float()
