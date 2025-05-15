@@ -95,7 +95,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", "-d", type=str, default="", help="data config file")
     parser.add_argument("--model", "-m", type=str, default="", help="model config file")
-    # 噪声率
     parser.add_argument("--partial_rate", "-p", type=float, default=0.1, help="partial rate")
     parser.add_argument("--loss_type", "-l", type=str, default="Proden", help="loss type")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER,

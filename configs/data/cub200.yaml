@@ -1,0 +1,2 @@
+dataset: "cub200"
+root: "Path/To/Dataset"

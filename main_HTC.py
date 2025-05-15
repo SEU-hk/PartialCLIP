@@ -8,7 +8,7 @@ from utils.config import _C as cfg
 from utils.logger import setup_logger
 from utils.hparams_registry import *
 
-from trainer_idpll import Trainer
+from trainer_HTC import Trainer
 
 def main(args):
     cfg_data_file = os.path.join("./configs/data", args.data + ".yaml")
@@ -21,10 +21,18 @@ def main(args):
     cfg.merge_from_list(args.opts)
     cfg['partial_rate'] = args.partial_rate
     cfg['loss_type'] = args.loss_type
+    cfg['num_epochs'] = args.num_epochs
+    cfg['gpu'] = args.gpu
     hparams = default_hparams(args.loss_type, args.data)
     for key, value in hparams.items():
         cfg[key] = value
+        
+    cfg['lr'] = args.learning_rate
     
+    if cfg.pre_filter == True:
+        path_to_confidence = f'confidence/{cfg.dataset}.pth'
+        cfg['zsclip'] = torch.load(path_to_confidence)
+
     # cfg.freeze()
 
     if cfg.output_dir is None:
@@ -63,8 +71,10 @@ def main(args):
         trainer.load_model(cfg.model_dir)
     
     if cfg.zero_shot:
-        # trainer.test("train")
-        trainer.test()
+        if cfg.infer_train == True:
+            trainer.test_confidence("train")
+        else:
+            trainer.test()
         return
 
     
@@ -95,11 +105,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", "-d", type=str, default="", help="data config file")
     parser.add_argument("--model", "-m", type=str, default="", help="model config file")
-    # 噪声率
     parser.add_argument("--partial_rate", "-p", type=float, default=0.1, help="partial rate")
     parser.add_argument("--loss_type", "-l", type=str, default="Proden", help="loss type")
+    parser.add_argument("--num_epochs", "-e", type=int, default="10", help="epochs")
+    parser.add_argument("--gpu", "-g", type=int, default=1, help="gpu_id")
+    parser.add_argument("--learning_rate","-lr", type=float, default=0.0005, help="learning_rate")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER,
                         help="modify config options using the command-line")
+
 
     args = parser.parse_args()
     main(args)

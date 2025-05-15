@@ -1,4 +1,4 @@
-backbone: "IN21K-ViT-L/16"
+backbone: "ViT-B-32"
 resolution: 224
 
 output_dir: null
@@ -6,7 +6,7 @@ print_freq: 10
 
 seed: 0
 deterministic: True
-gpu: 3
+gpu: 1
 num_workers: 8
 prec: "amp"
 
@@ -16,9 +16,9 @@ micro_batch_size: 64
 lr: 0.01
 weight_decay: 5e-4
 momentum: 0.9
-loss_type: "LA"
+loss_type: "Proden"
 classifier: "CosineClassifier"
 
-init_head: None
+init_head: "text_feat"
 tte: False
 expand: 24

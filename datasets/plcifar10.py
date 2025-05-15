@@ -23,31 +23,23 @@ class PLCIFAR10_Aggregate(Dataset):
         partial_label_all = pickle.load(open(dataset_path, "rb"))
 
         self.transform = transforms.Compose([
-            transforms.ToTensor(),  # 转换为张量
-            transforms.RandomHorizontalFlip(),  # 随机水平翻转
-            transforms.RandomCrop(32, padding=4),  # 随机裁剪
-            transforms.Resize((224, 224)),  # 上采样到 224x224
-            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))  # 使用 CLIP 的归一化参数
+            transforms.ToTensor(),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.Resize((224, 224)),
+            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))
         ])
 
         self.strong_transform = transforms.Compose([
-            transforms.ToPILImage(),  # 转换为 PIL 图像
-            transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),  # 随机裁剪和缩放
-            transforms.RandomHorizontalFlip(),  # 随机水平翻转
-            RandomAugment(3, None),  # 随机增强
-            transforms.ToTensor(),  # 转换为张量
-            transforms.Resize((224, 224)),  # 上采样到 224x224
-            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))  # 使用 CLIP 的归一化参数
-        ])
-
-        self.distill_transform = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),
             transforms.RandomHorizontalFlip(),
+            RandomAugment(3, None),
             transforms.ToTensor(),
-            Cutout(n_holes=1, length=16),
+            transforms.Resize((224, 224)),
             transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))
         ])
+
         self.test_transform = transforms.Compose(
             [transforms.ToTensor(),
             transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))])
@@ -76,60 +68,34 @@ class PLCIFAR10_Aggregate(Dataset):
         original_image = self.test_transform(image)
         weak_image = self.transform(image)
         strong_image=self.strong_transform(image)
-        # distill_image=self.distill_transform(image)
         return weak_image, strong_image, self.partial_targets[index], self.ord_labels[index]
 
 
 class PLCIFAR10_Vaguest(Dataset):
     def __init__(self, root, args=None):
 
-        #os.makedirs(os.path.join(root, 'clcifar10'), exist_ok=True)
         dataset_path = os.path.join(root, 'plcifar10', f"plcifar10.pkl")
 
         partial_label_all = pickle.load(open(dataset_path, "rb"))
 
-        # self.transform = transforms.Compose(
-        #     [transforms.ToTensor(),  
-        #     transforms.RandomHorizontalFlip(), 
-        #     transforms.RandomCrop(32,4),
-        #     transforms.Resize((224, 224)),
-        #     transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))])
-        # self.strong_transform = transforms.Compose([
-        #     transforms.ToPILImage(),
-        #     transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),
-        #     transforms.RandomHorizontalFlip(),
-        #     RandomAugment(3, None),
-        #     transforms.ToTensor(),
-        #     transforms.Resize((224, 224)),
-        #     transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605)),
-        # ])
-        
         self.transform = transforms.Compose([
-            transforms.ToTensor(),  # 转换为张量
-            transforms.RandomHorizontalFlip(),  # 随机水平翻转
-            transforms.RandomCrop(32, padding=4),  # 随机裁剪
-            transforms.Resize((224, 224)),  # 上采样到 224x224
-            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))  # 使用 CLIP 的归一化参数
+            transforms.ToTensor(),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.Resize((224, 224)),
+            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))
         ])
 
         self.strong_transform = transforms.Compose([
-            transforms.ToPILImage(),  # 转换为 PIL 图像
-            transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),  # 随机裁剪和缩放
-            transforms.RandomHorizontalFlip(),  # 随机水平翻转
-            RandomAugment(3, None),  # 随机增强
-            transforms.ToTensor(),  # 转换为张量
-            transforms.Resize((224, 224)),  # 上采样到 224x224
-            transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))  # 使用 CLIP 的归一化参数
-        ])
-
-        self.distill_transform = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomResizedCrop(size=32, scale=(0.2, 1.)),
             transforms.RandomHorizontalFlip(),
+            RandomAugment(3, None),
             transforms.ToTensor(),
-            Cutout(n_holes=1, length=16),
+            transforms.Resize((224, 224)),
             transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))
         ])
+
         self.test_transform = transforms.Compose(
             [transforms.ToTensor(),
             transforms.Normalize((0.4922, 0.4832, 0.4486), (0.2456, 0.2419, 0.2605))])
@@ -163,5 +129,5 @@ class PLCIFAR10_Vaguest(Dataset):
         original_image = self.test_transform(image)
         weak_image = self.transform(image)
         strong_image=self.strong_transform(image)
-        # distill_image = self.distill_transform(image)
         return weak_image, strong_image, self.partial_targets[index], self.ord_labels[index]
+    

@@ -15,7 +15,7 @@ class ViT_Tuner(nn.Module):
     def __init__(self, cfg, vit_model, num_classes):
         super().__init__()
 
-        if isinstance(vit_model, CLIP_ViT):
+        if isinstance(vit_model, CLIP_ViT) or cfg.backbone.startswith("ViT"):
             n_layers = len(vit_model.transformer.resblocks)
             emb_dim = vit_model.positional_embedding.shape[1]
             seq_len = vit_model.positional_embedding.shape[0]
@@ -39,6 +39,30 @@ class ViT_Tuner(nn.Module):
             mlp_out_dim = get_mlp_out_bias(0).shape[0]
 
         elif isinstance(vit_model, ViT):
+            n_layers = len(vit_model.blocks)
+            emb_dim = vit_model.pos_embed.shape[2]
+            seq_len = vit_model.pos_embed.shape[1]
+            patch_size = vit_model.patch_embed.proj.kernel_size
+            dtype = vit_model.patch_embed.proj.weight.dtype
+
+            blocks = vit_model.blocks
+
+            get_attn_in_weight = lambda i: blocks[i].attn.qkv.weight
+            get_attn_in_bias = lambda i: blocks[i].attn.qkv.bias
+            get_attn_out_weight = lambda i: blocks[i].attn.proj.weight
+            get_attn_out_bias = lambda i: blocks[i].attn.proj.bias
+            get_mlp_in_weight = lambda i: blocks[i].mlp.fc1.weight
+            get_mlp_in_bias = lambda i: blocks[i].mlp.fc1.bias
+            get_mlp_out_weight = lambda i: blocks[i].mlp.fc2.weight
+            get_mlp_out_bias = lambda i: blocks[i].mlp.fc2.bias
+
+            attn_in_dim = get_attn_in_bias(0).shape[0]
+            attn_out_dim = get_attn_out_bias(0).shape[0]
+            mlp_in_dim = get_mlp_in_bias(0).shape[0]
+            mlp_out_dim = get_mlp_out_bias(0).shape[0]
+            
+            
+        else:
             n_layers = len(vit_model.blocks)
             emb_dim = vit_model.pos_embed.shape[2]
             seq_len = vit_model.pos_embed.shape[1]
@@ -253,10 +277,10 @@ class ViT_Tuner(nn.Module):
 
 
 class Peft_ViT(nn.Module):
-    def __init__(self, vit_model):
+    def __init__(self, vit_model, cfg):
         super().__init__()
 
-        if isinstance(vit_model, CLIP_ViT):
+        if isinstance(vit_model, CLIP_ViT) or cfg.backbone.startswith("ViT"):
             self.backbone = "CLIP-VIT"
             self.patch_embedding = vit_model.conv1
             self.class_embedding = vit_model.class_embedding
@@ -278,19 +302,22 @@ class Peft_ViT(nn.Module):
             self.ln_post = vit_model.norm
             self.proj = nn.Identity()
             self.out_dim = self.ln_post.bias.shape[0]
+            
 
     @property
     def dtype(self):
         return self.patch_embedding.weight.dtype
 
     def forward(self, x, tuner=None, head=None):
+        # print("x.size():", x.size())  # 添加这行来检查 x 的尺寸
+        # print(self.positional_embedding.shape)
         x = x.to(self.dtype)
         x = self.patch_embedding(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        x = torch.cat([self.class_embedding.to(x.dtype).expand(x.shape[0], 1, -1), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+        if self.class_embedding is not None:
+            x = torch.cat([self.class_embedding.to(x.dtype).expand(x.shape[0], 1, -1), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         # print("x.size():", x.size())  # 添加这行来检查 x 的尺寸
-        # print("self.positional_embedding.size():", self.positional_embedding.size())  # 添加这行来检查 positional_embedding 的尺寸
         x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
 
@@ -465,6 +492,7 @@ class Peft_ViT(nn.Module):
         else:
             return head(x), x
         
+
         
         
 class Peft_ViT_HTC(nn.Module):
@@ -895,9 +923,13 @@ class Peft_ViT_MLP(nn.Module):
         # x = x @ self.proj
         
         feat_c = neck(x)
-        logits = head(feat_c)
+        logits = head(x)
 
         if head is None:
-            return x
+            return F.normalize(feat_c, dim=1)
         else:
-            return logits, x
+            return logits, F.normalize(feat_c, dim=1)
+        
+        
+        
+        

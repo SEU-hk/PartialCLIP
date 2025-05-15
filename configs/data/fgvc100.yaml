@@ -1,0 +1,2 @@
+dataset: "fgvc100"
+root: "Path/To/Dataset"

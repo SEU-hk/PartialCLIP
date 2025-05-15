@@ -10,6 +10,7 @@ from augment.autoaugment_extra import ImageNetPolicy
 from torchvision.datasets import FGVCAircraft
 import PIL.Image
 import torchvision.datasets as dsets
+from utils.candidate_set_generation import *
 
 
 def load_fgvc100(cfg, transform_train, transform_test):
@@ -19,25 +20,28 @@ def load_fgvc100(cfg, transform_train, transform_test):
     ori_data, ori_labels = next(iter(original_full_loader))
     ori_labels = ori_labels.long()
     
-    # 计算数据集中样本的总数量
     num_instances = len(original_train)
+
     classnames = []
     with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/fgvc100.txt', 'r') as file:
         for line in file.readlines():
             classnames.append(line.strip())
  
-    # 正确计算类别数量，通过获取所有标签的去重后的集合的长度来确定类别数
     num_classes = len(classnames)
     print(num_classes)
 
     test_dataset = dsets.FGVCAircraft(root=cfg.root, split='test', transform=transform_test)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
 
-    model = models.wide_resnet50_2()
-    model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
-    model = model.cuda()
-    model.load_state_dict(torch.load(os.path.expanduser('weights/fgvc100.pt'))['model_state_dict'])
-    partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
+    if 0 < cfg.partial_rate < 1:
+        partialY_matrix = fps(ori_labels, cfg.partial_rate)
+      
+    else:  
+        model = models.wide_resnet50_2()
+        model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
+        model = model.cuda()
+        model.load_state_dict(torch.load(os.path.expanduser('weights/fgvc100.pt'))['model_state_dict'])
+        partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
 
     temp = torch.zeros(partialY_matrix.shape)
     temp[torch.arange(partialY_matrix.shape[0]), ori_labels] = 1
@@ -55,7 +59,42 @@ def load_fgvc100(cfg, transform_train, transform_test):
         num_workers=8,
         drop_last=True
     )
-    return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
+    
+    train_test_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=cfg.batch_size,
+                                                       shuffle=False, num_workers=20)
+    
+    return partial_training_dataloader, train_test_loader, partialY_matrix, test_loader, num_instances, num_classes, classnames
+
+
+def cpl_fgvc100(cfg, transform_train, transform_test):
+    original_train = dsets.FGVCAircraft(root=cfg.root, split='trainval', transform=transform_train, download=False)
+    original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
+                                                       shuffle=False, num_workers=20)
+    ori_data, ori_labels = next(iter(original_full_loader))
+    ori_labels = ori_labels.long()
+    
+    num_instances = len(original_train)
+
+    classnames = []
+    with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/fgvc100.txt', 'r') as file:
+        for line in file.readlines():
+            classnames.append(line.strip())
+ 
+    label_to_idx = {}
+    for idx, classname in enumerate(classnames):
+        label_to_idx[classname] = idx
+                
+    num_classes = len(classnames)
+    print(num_classes)
+
+    test_dataset = dsets.FGVCAircraft(root=cfg.root, split='test', transform=transform_test)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
+
+    
+    train_test_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=cfg.batch_size,
+                                                       shuffle=False, num_workers=20)
+    
+    return original_train, ori_data, ori_labels, train_test_loader, test_loader, num_instances, num_classes, classnames, label_to_idx
 
 
 class FGVC100_Partialize(Dataset):
@@ -64,6 +103,13 @@ class FGVC100_Partialize(Dataset):
         self.labels = image_labels
         self.given_partial_label_matrix = given_partial_label_matrix
         self.true_labels = true_labels
+        self.distill_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            ImageNetPolicy(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406),std=(0.229, 0.224, 0.225))
+        ])
         self.weak_transform = transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
@@ -90,6 +136,7 @@ class FGVC100_Partialize(Dataset):
 
         each_image_w = self.weak_transform(image)
         each_image_s = self.strong_transform(image)
+        each_image_distill= self.distill_transform(image)
         each_label = self.given_partial_label_matrix[index]
         each_true_label = self.true_labels[index]
 

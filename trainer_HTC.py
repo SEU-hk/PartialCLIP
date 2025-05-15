@@ -4,7 +4,6 @@ import time
 import datetime
 import numpy as np
 from tqdm import tqdm
-import pickle
 from collections import OrderedDict
 from sklearn.linear_model import LogisticRegression
 
@@ -25,62 +24,21 @@ from scipy.special import comb
 
 import datasets
 from models import *
-from datasets.imagenet_lt import ImageNet_Augmentention
-from datasets.places_lt import Places_Augmentention
 from datasets.cifar10 import *
 from datasets.cifar100 import *
 
 from utils.meter import AverageMeter
 from utils.samplers import DownSampler
 from utils.losses import *
+from utils.pll_loss import *
 from utils.evaluator import Evaluator, compute_accuracy
 from utils.templates import ZEROSHOT_TEMPLATES
+from utils.visual import *
 from algorithms import *
-# from LIFT2.utils import algorithms
+from utils.util import *
+from utils.candidate_set_generation import *
 
-import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
-def load_clip_to_cpu(backbone_name, prec):
-    backbone_name = backbone_name.lstrip("CLIP-")
-    url = clip._MODELS[backbone_name]
-    model_path = clip._download(url)
-
-    try:
-        # loading JIT archive
-        model = torch.jit.load(model_path, map_location="cpu").eval()
-        state_dict = None
-
-    except RuntimeError:
-        state_dict = torch.load(model_path, map_location="cpu").eval()
-
-    model = clip.build_model(state_dict or model.state_dict())
-
-    assert prec in ["fp16", "fp32", "amp"]
-    if prec == "fp32" or prec == "amp":
-        # CLIP's default precision is fp16
-        model.float()
-
-    return model
-
-
-def load_vit_to_cpu(backbone_name, prec):
-    if backbone_name == "IN21K-ViT-B/16":
-        model = vit_base_patch16_224(pretrained=True).eval()
-    elif backbone_name == "IN21K-ViT-B/16@384px":
-        model = vit_base_patch16_384(pretrained=True).eval()
-    elif backbone_name == "IN21K-ViT-L/16":
-        model = vit_large_patch16_224(pretrained=True).eval()
-
-    assert prec in ["fp16", "fp32", "amp"]
-    if prec == "fp16":
-        # ViT's default precision is fp32
-        model.half()
-    
-    return model
-
-
-
 
 class Trainer:
     def __init__(self, cfg):
@@ -94,7 +52,6 @@ class Trainer:
             self.device = torch.device("cuda:{}".format(cfg.gpu))
 
         self.cfg = cfg
-        # self.cfg['zsclip'] = self.cfg['zsclip'].to(self.device)
         self.build_data_loader()
         self.build_model()
         self.evaluator = Evaluator(cfg, self.many_idxs, self.med_idxs, self.few_idxs)
@@ -106,14 +63,13 @@ class Trainer:
         cfg = self.cfg
         root = cfg.root
         resolution = cfg.resolution
-        expand = cfg.expand
 
-        if cfg.backbone.startswith("CLIP"):
-            mean = [0.48145466, 0.4578275, 0.40821073]
-            std = [0.26862954, 0.26130258, 0.27577711]
-        else:
+        if cfg.backbone.startswith("IN21K"):
             mean = [0.5, 0.5, 0.5]
             std = [0.5, 0.5, 0.5]
+        else:
+            mean = [0.48145466, 0.4578275, 0.40821073]
+            std = [0.26862954, 0.26130258, 0.27577711]
         print("mean:", mean)
         print("std:", std)
 
@@ -131,38 +87,12 @@ class Trainer:
             transforms.Normalize(mean, std),
         ])
 
-        if cfg.tte:
-            if cfg.tte_mode == "fivecrop":
-                transform_test = transforms.Compose([
-                    transforms.Resize(resolution + expand),
-                    transforms.FiveCrop(resolution),
-                    transforms.Lambda(lambda crops: torch.stack([transforms.ToTensor()(crop) for crop in crops])),
-                    transforms.Normalize(mean, std),
-                ])
-            elif cfg.tte_mode == "tencrop":
-                transform_test = transforms.Compose([
-                    transforms.Resize(resolution + expand),
-                    transforms.TenCrop(resolution),
-                    transforms.Lambda(lambda crops: torch.stack([transforms.ToTensor()(crop) for crop in crops])),
-                    transforms.Normalize(mean, std),
-                ])
-            elif cfg.tte_mode == "randaug":
-                _resize_and_flip = transforms.Compose([
-                    transforms.RandomResizedCrop(resolution),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                ])
-                transform_test = transforms.Compose([
-                    transforms.Lambda(lambda image: torch.stack([_resize_and_flip(image) for _ in range(cfg.randaug_times)])),
-                    transforms.Normalize(mean, std),
-                ])
-        else:
-            transform_test = transforms.Compose([
-                transforms.Resize(resolution * 8 // 7),
-                transforms.CenterCrop(resolution),
-                transforms.Lambda(lambda crop: torch.stack([transforms.ToTensor()(crop)])),
-                transforms.Normalize(mean, std),
-            ])
+        transform_test = transforms.Compose([
+            transforms.Resize(resolution * 8 // 7),
+            transforms.CenterCrop(resolution),
+            transforms.Lambda(lambda crop: torch.stack([transforms.ToTensor()(crop)])),
+            transforms.Normalize(mean, std),
+        ])
 
         train_dataset = getattr(datasets, cfg.dataset)(root, train=True, transform=transform_train)
         train_init_dataset = getattr(datasets, cfg.dataset)(root, train=True, transform=transform_plain)
@@ -180,7 +110,7 @@ class Trainer:
         print(max(self.cls_num_list), min(self.cls_num_list))
         self.classnames = train_dataset.classnames
 
-        if cfg.dataset in ["CIFAR100", "CIFAR100_IR10", "CIFAR100_IR20", "CIFAR100_IR50", "CIFAR100_IR100", "CIFAR100_IR150"]:
+        if cfg.dataset.startswith("CIFAR"):
             split_cls_num_list = datasets.CIFAR100_IR100(root, train=True).cls_num_list
         else:
             split_cls_num_list = self.cls_num_list
@@ -188,21 +118,10 @@ class Trainer:
         self.med_idxs = ((np.array(split_cls_num_list) >= 20) & (np.array(split_cls_num_list) <= 100)).nonzero()[0]
         self.few_idxs = (np.array(split_cls_num_list) < 20).nonzero()[0]
 
-        if cfg.init_head == "1_shot":
-            init_sampler = DownSampler(train_init_dataset, n_max=1)
-        elif cfg.init_head == "10_shot":
-            init_sampler = DownSampler(train_init_dataset, n_max=10)
-        elif cfg.init_head == "100_shot":
-            init_sampler = DownSampler(train_init_dataset, n_max=100)
-        else:
-            init_sampler = None
-
         self.ori_train_loader = DataLoader(train_dataset,
             batch_size=cfg.micro_batch_size, shuffle=True,
             num_workers=cfg.num_workers, pin_memory=True)
         
-        ########################################################################################
-        # Q1
         if not (cfg.zero_shot or cfg.test_train or cfg.test_only):
             # cifar
             if cfg.dataset.startswith("CIFAR"):
@@ -217,11 +136,9 @@ class Trainer:
             print(len(labels))
             
             if 0 < cfg.partial_rate < 1:
-                partialY = self.fps(cfg.partial_rate)
+                partialY = fps(labels, cfg.partial_rate)
             elif cfg.partial_rate == 0:
-                partialY = self.uss()
-            else:
-                partialY = self.instance_dependent_generation()
+                partialY = uss(labels)
 
             temp = torch.zeros(partialY.shape)
             temp[torch.arange(partialY.shape[0]), labels] = 1
@@ -240,12 +157,11 @@ class Trainer:
                 num_workers=cfg.num_workers, pin_memory=True)
             
             partialY[torch.arange(partialY.shape[0]), labels] = 1
+
+            if cfg.pre_filter == True:
+                partialY, data, labels = pre_filter(cfg, partialY, labels)
             
-            if cfg.dataset == "ImageNet_LT":
-                self.train_givenY = ImageNet_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
-            elif cfg.dataset == "Places_LT":
-                self.train_givenY = Places_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
-            elif cfg.dataset.startswith("CIFAR"):
+            if cfg.dataset.startswith("CIFAR"):
                 self.train_givenY = CIFAR_Augmentation(data, partialY.float(), labels.float(), transform_train, transform_plain)
             else:
                 self.train_givenY = iNaturalist2018_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
@@ -254,15 +170,12 @@ class Trainer:
             
             self.train_loader = DataLoader(dataset=self.train_givenY, 
                 batch_size=cfg.batch_size, shuffle=True,
-                num_workers=cfg.num_workers, pin_memory=True, drop_last=True)
-        ########################################################################################
+                num_workers=cfg.num_workers, pin_memory=True, drop_last=False)
         
-        # Q2
         self.train_init_loader = DataLoader(train_init_dataset,
-            batch_size=cfg.batch_size, sampler=init_sampler, shuffle=False,
+            batch_size=cfg.batch_size, sampler=None, shuffle=False,
             num_workers=cfg.num_workers, pin_memory=True)
 
-        # Q3
         self.train_test_loader = DataLoader(train_test_dataset,
             batch_size=cfg.batch_size, shuffle=False,
             num_workers=cfg.num_workers, pin_memory=True)
@@ -307,13 +220,14 @@ class Trainer:
             self.head = self.model.head
 
 
-        elif cfg.backbone.startswith("IN21K-ViT"):
-            print(f"Loading ViT (backbone: {cfg.backbone})")
-            vit_model = load_vit_to_cpu(cfg.backbone, cfg.prec)
-            self.model = PeftModelFromViT(cfg, vit_model, num_classes)
+        else:
+            print(f"Loading backbone: {cfg.backbone}")
+            vit_model = load_model_to_cpu(cfg.backbone, cfg.prec)
+            self.model = PeftModelFromViT_HTC(cfg, vit_model, num_classes)
             self.model.to(self.device)
             self.tuner = self.model.tuner
             self.head = self.model.head
+            self.head1 = self.model.head1
 
         if not (cfg.zero_shot or cfg.test_train or cfg.test_only):
             self.build_optimizer()
@@ -321,10 +235,6 @@ class Trainer:
 
             if cfg.init_head == "text_feat":
                 self.init_head_text_feat()
-            elif cfg.init_head in ["class_mean", "1_shot", "10_shot", "100_shot"]:
-                self.init_head_class_mean()
-            elif cfg.init_head == "linear_probe":
-                self.init_head_linear_probe()
             else:
                 print("No initialization with head")
             
@@ -389,7 +299,6 @@ class Trainer:
         tensor = torch.randn(N, C)
         print(tensor.shape)
         algorithm_class = get_algorithm_class(cfg["loss_type"])
-        # self.algorithm = algorithm_class(self.model, self.train_dataset.data.shape, self.partialY, cfg)
         self.algorithm = algorithm_class(self.model, tensor.shape, self.partialY, cfg)
         self.algorithm = self.algorithm.to(self.device)
             
@@ -444,74 +353,7 @@ class Trainer:
 
         self.head1.apply_weight(text_features)
         self.head.apply_weight(text_features)
-
-
-    @torch.no_grad()
-    def init_head_class_mean(self):
-        print("Initialize head with class means")
-        all_features = []
-        all_labels = []
-
-        for batch in tqdm(self.train_init_loader, ascii=True):
-            image = batch[0]
-            label = batch[1]
-
-            image = image.to(self.device)
-            label = label.to(self.device)
-
-            feature = self.model(image, use_tuner=False, return_feature=True)
-
-            all_features.append(feature)
-            all_labels.append(label)
-
-        all_features = torch.cat(all_features, dim=0)
-        all_labels = torch.cat(all_labels, dim=0)
-
-        sorted_index = all_labels.argsort()
-        all_features = all_features[sorted_index]
-        all_labels = all_labels[sorted_index]
-
-        unique_labels, label_counts = torch.unique(all_labels, return_counts=True)
-
-        class_means = [None] * self.num_classes
-        idx = 0
-        for i, cnt in zip(unique_labels, label_counts):
-            class_means[i] = all_features[idx: idx+cnt].mean(dim=0, keepdim=True)
-            idx += cnt
-        class_means = torch.cat(class_means, dim=0)
-        class_means = F.normalize(class_means, dim=-1)
-
-        self.head1.apply_weight(class_means)
-        self.head.apply_weight(class_means)
-
-    @torch.no_grad()
-    def init_head_linear_probe(self):
-        print("Initialize head with linear probing")
-        all_features = []
-        all_labels = []
-
-        for batch in tqdm(self.train_init_loader, ascii=True):
-            image = batch[0]
-            label = batch[1]
-
-            image = image.to(self.device)
-            label = label.to(self.device)
-
-            feature = self.model(image, use_tuner=False, return_feature=True)
-
-            all_features.append(feature)
-            all_labels.append(label)
-
-        all_features = torch.cat(all_features, dim=0).cpu()
-        all_labels = torch.cat(all_labels, dim=0).cpu()
-
-        clf = LogisticRegression(solver="lbfgs", max_iter=100, penalty="l2", class_weight="balanced").fit(all_features, all_labels)
-        class_weights = torch.from_numpy(clf.coef_).to(all_features.dtype).to(self.device)
-        class_weights = F.normalize(class_weights, dim=-1)
-
-        self.head1.apply_weight(class_weights)
-        self.head.apply_weight(class_weights)
-   
+ 
             
     def train(self):
         cfg = self.cfg
@@ -524,7 +366,8 @@ class Trainer:
 
         # Remember the starting time (for computing the elapsed time)
         time_start = time.time()
-
+        best_acc = 0
+        
         num_epochs = cfg.num_epochs
         for epoch_idx in range(num_epochs):
             self.tuner.train()
@@ -542,19 +385,25 @@ class Trainer:
                 for batch in train_minibatches_iterator:
                     batch_device = [item.to(self.device) for item in batch]
                     loss = self.algorithm.update(batch_device, epoch_idx)
-                        
-                    # loss_meter.update(loss.item())
-                    # batch_time.update(time.time() - start)
-                    # print(f"time {batch_time.val:.3f} ({batch_time.avg:.3f})")
-                    # print(f"loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})")
                     
                     pbar.update(1)
+                    
             
+            if cfg['loss_type'] == 'HTC':
+                confidence = self.algorithm.confidence
+                print(confidence.shape)
+                column_sums = confidence.sum(dim=0, keepdim=True)
+                normalized_sums = column_sums / column_sums.sum()
+                print(normalized_sums.tolist()) 
                 
             end = time.time()
             print(f"Epoch: {epoch_idx}, Epoch time: {end - start}")  
               
-            self.test_HTC()
+            acc = self.test_HTC()
+            
+            best_acc = max(best_acc, acc)
+            
+            print("Best_accuracy:", best_acc)
  
         torch.cuda.empty_cache()
 
@@ -574,142 +423,6 @@ class Trainer:
 
         # Close writer
         self._writer.close()
-        
-    def fps(self, partial_rate=0.1):
-        train_labels = self.targets
-        if torch.min(train_labels) > 1:
-            raise RuntimeError('testError')
-        elif torch.min(train_labels) == 1:
-            train_labels = train_labels - 1
-
-        K = int(torch.max(train_labels) - torch.min(train_labels) + 1)
-        n = train_labels.shape[0]
-
-        partialY = torch.zeros(n, K)
-        partialY[torch.arange(n), train_labels] = 1.0
-        p_1 = partial_rate
-        transition_matrix =  np.eye(K)
-        transition_matrix[np.where(~np.eye(transition_matrix.shape[0],dtype=bool))]=p_1
-        print(transition_matrix)
-
-        random_n = np.random.uniform(0, 1, size=(n, K))
-
-        for j in range(n):  # for each instance
-            for jj in range(K): # for each class 
-                if jj == train_labels[j]: # except true class
-                    continue
-                if random_n[j, jj] < transition_matrix[train_labels[j], jj]:
-                    partialY[j, jj] = 1.0
-
-        print("Finish Generating Candidate Label Sets!\n")
-        return partialY
-
-
-    def instance_dependent_generation(self):
-        def binarize_class(y):
-            label = y.reshape(len(y), -1)
-            enc = OneHotEncoder(categories='auto')
-            enc.fit(label)
-            label = enc.transform(label).toarray().astype(np.float32)
-            label = torch.from_numpy(label)
-            return label
-
-        def create_model(ds, feature, c):
-            from partial_models.resnet import resnet
-            from partial_models.mlp import mlp_phi
-            from partial_models.wide_resnet import WideResNet
-            if ds in ['kmnist', 'fmnist']:
-                model = mlp_phi(feature, c)
-            elif ds in ['CIFAR10']:
-                # model = resnet(depth=32, n_outputs=c)
-                model = WideResNet(depth=28, num_classes=10, widen_factor=10, dropRate=0.3)
-            elif ds in ['CIFAR100']:
-                # model = torchvision.models.wide_resnet50_2()
-                # model.fc = nn.Linear(model.fc.in_features, c)
-                model = WideResNet(depth=28, num_classes=100, widen_factor=10, dropRate=0.3)
-            else:
-                pass
-            return model
-
-        with torch.no_grad():
-            c = max(self.targets) + 1
-            data = torch.from_numpy(self.data)
-            y = binarize_class(self.targets.clone().detach().long())
-            ds = self.cfg['dataset']
-
-            f = np.prod(list(data.shape)[1:])
-            batch_size = 2000
-            rate = 0.4
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            weight_path = f'./weights/{ds}.pt'
-                
-            model = create_model(ds, f, c).to(device)
-            model.load_state_dict(torch.load(weight_path, map_location=device))
-            train_X, train_Y = data.to(device), y.to(device)
-
-            train_X = train_X.permute(0, 3, 1, 2).to(torch.float32)
-            train_p_Y_list = []
-            step = train_X.size(0) // batch_size
-            for i in range(0, step):
-                outputs = model(train_X[i * batch_size:(i + 1) * batch_size])
-                train_p_Y = train_Y[i * batch_size:(i + 1) * batch_size].clone().detach()
-                partial_rate_array = F.softmax(outputs, dim=1).clone().detach()
-                partial_rate_array[torch.where(train_Y[i * batch_size:(i + 1) * batch_size] == 1)] = 0
-                partial_rate_array = partial_rate_array / torch.max(partial_rate_array, dim=1, keepdim=True)[0]
-                partial_rate_array = partial_rate_array / partial_rate_array.mean(dim=1, keepdim=True) * rate
-                partial_rate_array[partial_rate_array > 1.0] = 1.0
-                m = torch.distributions.binomial.Binomial(total_count=1, probs=partial_rate_array)
-                z = m.sample()
-                train_p_Y[torch.where(z == 1)] = 1.0
-                train_p_Y_list.append(train_p_Y)
-            train_p_Y = torch.cat(train_p_Y_list, dim=0)
-            assert train_p_Y.shape[0] == train_X.shape[0]
-        final_y = train_p_Y.cpu().clone()
-        pn = final_y.sum() / torch.ones_like(final_y).sum()
-        print("Partial type: instance dependent, Average Label: " + str(pn * 10))
-        return train_p_Y.cpu()
-
-
-    def uss(self): 
-        train_labels = self.targets
-        if torch.min(train_labels) > 1:
-            raise RuntimeError('testError')
-        elif torch.min(train_labels) == 1:
-            train_labels = train_labels - 1
-            
-        K = torch.max(train_labels) - torch.min(train_labels) + 1
-        n = train_labels.shape[0]
-        cardinality = (2**K - 2).float()
-        number = torch.tensor([comb(K, i+1) for i in range(K-1)]).float() # 1 to K-1 because cannot be empty or full label set, convert list to tensor
-        frequency_dis = number / cardinality
-        prob_dis = torch.zeros(K-1) # tensor of K-1
-        for i in range(K-1):
-            if i == 0:
-                prob_dis[i] = frequency_dis[i]
-            else:
-                prob_dis[i] = frequency_dis[i]+prob_dis[i-1]
-
-        random_n = torch.from_numpy(np.random.uniform(0, 1, n)).float() # tensor: n
-        mask_n = torch.ones(n) # n is the number of train_data
-        partialY = torch.zeros(n, K)
-        partialY[torch.arange(n), train_labels] = 1.0
-        
-        temp_num_partial_train_labels = 0 # save temp number of partial train_labels
-        
-        for j in range(n): # for each instance
-            for jj in range(K-1): # 0 to K-2
-                if random_n[j] <= prob_dis[jj] and mask_n[j] == 1:
-                    temp_num_partial_train_labels = jj+1 # decide the number of partial train_labels
-                    mask_n[j] = 0
-                    
-            temp_num_fp_train_labels = temp_num_partial_train_labels - 1
-            candidates = torch.from_numpy(np.random.permutation(K.item())).long() # because K is tensor type
-            candidates = candidates[candidates!=train_labels[j]]
-            temp_fp_train_labels = candidates[:temp_num_fp_train_labels]
-            
-            partialY[j, temp_fp_train_labels] = 1.0 # fulfill the partial label matrix
-        print("Finish Generating Candidate Label Sets!\n")
-        return partialY
     
     
     @torch.no_grad()
@@ -755,12 +468,14 @@ class Trainer:
 
         results = self.evaluator.evaluate()
 
+        acc = results["accuracy"]
+         
         for k, v in results.items():
             tag = f"test/{k}"
             if self._writer is not None:
                 self._writer.add_scalar(tag, v)
 
-        return list(results.values())[0]
+        return acc
 
 
     def save_model(self, directory):

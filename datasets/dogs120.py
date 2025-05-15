@@ -4,10 +4,13 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from torchvision import models
 from augment.randaugment import RandomAugment
+from augment.cutout import Cutout
+from augment.autoaugment_extra import ImageNetPolicy
 from utils.util import generate_instancedependent_candidate_labels
 import torch.nn as nn
 import PIL.Image
 from datasets.dataset_dogs import Dogs
+from utils.candidate_set_generation import *
 
 
 def load_dogs120(cfg, transform_train, transform_test):
@@ -17,23 +20,24 @@ def load_dogs120(cfg, transform_train, transform_test):
     ori_data, ori_labels = next(iter(original_full_loader))
     ori_labels = ori_labels.long()
     
-    # 计算数据集中样本的总数量
     num_instances = len(original_train)
     classnames = original_train.classes
- 
-    # 正确计算类别数量，通过获取所有标签的去重后的集合的长度来确定类别数
     num_classes = len(classnames)
     print(num_classes)
 
     test_dataset = Dogs(root=cfg.root, train=False, cropped=False, transform=transform_test, download=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
 
-    model = models.wide_resnet50_2()
-    model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
-    model = model.cuda()
-    model.load_state_dict(
-        torch.load(os.path.expanduser('weights/dogs120.pt'))['model_state_dict'])
-    partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
+    if 0 < cfg.partial_rate < 1:
+        partialY_matrix = fps(ori_labels, cfg.partial_rate)
+      
+    else:  
+        model = models.wide_resnet50_2()
+        model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
+        model = model.cuda()
+        model.load_state_dict(
+            torch.load(os.path.expanduser('weights/dogs120.pt'))['model_state_dict'])
+        partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
 
     temp = torch.zeros(partialY_matrix.shape)
     temp[torch.arange(partialY_matrix.shape[0]), ori_labels] = 1
@@ -52,7 +56,11 @@ def load_dogs120(cfg, transform_train, transform_test):
         num_workers=8,
         drop_last=True
     )
-    return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
+    
+    train_test_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=cfg.batch_size,
+                                                       shuffle=False, num_workers=20)
+    
+    return partial_training_dataloader, train_test_loader, partialY_matrix, test_loader, num_instances, num_classes, classnames
 
 
 

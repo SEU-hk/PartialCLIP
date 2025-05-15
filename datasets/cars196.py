@@ -5,10 +5,12 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from torchvision import models
 from augment.randaugment import RandomAugment
+from augment.autoaugment_extra import ImageNetPolicy
 from utils.util import generate_instancedependent_candidate_labels
 import torch.nn as nn
 import PIL.Image
 import torchvision.datasets as dsets
+from utils.candidate_set_generation import *
 
 
 def load_cars196(cfg, transform_train, transform_test):
@@ -32,13 +34,17 @@ def load_cars196(cfg, transform_train, transform_test):
     test_dataset = dsets.StanfordCars(root=cfg.root, split='test', transform=transform_test)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=4)
 
-    model = models.wide_resnet50_2()
-    model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
-    model = model.cuda()
-    model.load_state_dict(
-        torch.load(os.path.expanduser('weights/cars.pt'))['model_state_dict'])
-    partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
-
+    if 0 < cfg.partial_rate < 1:
+        partialY_matrix = fps(ori_labels, cfg.partial_rate)
+        
+    else:
+        model = models.wide_resnet50_2()
+        model.fc = nn.Linear(model.fc.in_features, max(ori_labels) + 1)
+        model = model.cuda()
+        model.load_state_dict(
+            torch.load(os.path.expanduser('weights/cars.pt'))['model_state_dict'])
+        partialY_matrix = generate_instancedependent_candidate_labels(model, ori_data, ori_labels, 0.1)
+    
     temp = torch.zeros(partialY_matrix.shape)
     temp[torch.arange(partialY_matrix.shape[0]), ori_labels] = 1
 
@@ -58,7 +64,7 @@ def load_cars196(cfg, transform_train, transform_test):
         num_workers=8,
         drop_last=True
     )
-    return partial_training_dataloader, partialY_matrix, test_loader, num_instances, num_classes, classnames
+    return partial_training_dataloader, original_full_loader, partialY_matrix, test_loader, num_instances, num_classes, classnames
 
 
 class CARS196_Partialize(Dataset):
@@ -67,6 +73,13 @@ class CARS196_Partialize(Dataset):
         self.labels = image_labels
         self.given_partial_label_matrix = given_partial_label_matrix
         self.true_labels = true_labels
+        self.distill_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            ImageNetPolicy(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406),std=(0.229, 0.224, 0.225))
+        ]) 
         self.weak_transform = transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
@@ -93,7 +106,10 @@ class CARS196_Partialize(Dataset):
 
         each_image_w = self.weak_transform(image)
         each_image_s = self.strong_transform(image)
+        each_image_distill= self.distill_transform(image)
         each_label = self.given_partial_label_matrix[index]
         each_true_label = self.true_labels[index]
 
         return each_image_w, each_image_s, each_label, each_true_label, index
+
+
