@@ -15,7 +15,7 @@ This is the source code for the paper.
 
 ## 🎉 Introduction
 
-Welcome to (**PartialCLIP**): a unified partial label learning benchmark for classification. The PartialCLIP framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of **PLL**(Partial Label Learning), **LT-PLL** (Long-tailed Partial Label Learning), and **ID-PLL** (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
+Welcome to (**PartialCLIP**): a unified partial label learning benchmark for classification. The PartialCLIP framework proposed by us has a clear structure. It integrates the state-of-the-art (SOTA) algorithms of **ST-PLL**(Standard Partial Label Learning), **LT-PLL** (Long-tailed Partial Label Learning), and **ID-PLL** (Instance-dependent Partial Label Learning), and provides a unified interface. Moreover, its code has been open-sourced on GitHub, allowing new methods and datasets to be added easily. 
 
 
 ## 📰 What's New
@@ -24,7 +24,7 @@ Welcome to (**PartialCLIP**): a unified partial label learning benchmark for cla
 - [2024-12]🌟 Add SoTa *ID-PLL* baselines, including [ABLE](https://arxiv.org/abs/2209.10365)(**IJCAI 2022**), [IDGP](https://arxiv.org/abs/2204.03845)(**ICLR 2023**). [POP](https://arxiv.org/abs/2206.00830)(**ICLR 2023**)!!
 - [2024-11]🌟 Add [Places](http://places2.csail.mit.edu/download.html), [ImageNet](http://image-net.org/index) LT-PLL datasets!
 - [2024-11]🌟 Add SoTa *LT-PLL* baselines, including [Solar](https://arxiv.org/abs/2209.10365)(**ICLR 2022**), [HTC](https://arxiv.org/pdf/2007.08929)(**AAAI 2024**)!
-- [2024-10]🌟 Add SoTa *PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
+- [2024-10]🌟 Add SoTa *ST-PLL* baselines, including [CRDPLL](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)(**ICML 2022**), [PiCO](https://arxiv.org/pdf/2007.08929)(**ICLR 2022**), [ABS-MAE ABS-GCE](https://openreview.net/pdf?id=qqdXHUGec9h)(**TPAMI 2023**)!
 - [2024-10]🌟 Add [CIFAR-10 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html), [CIFAR-100 Dataset](https://www.cs.toronto.edu/~kriz/cifar.html) and their long-tailed versions.
 - [2024-10]🌟 Add SoTa *PLL* baselines, including [PRODEN](https://arxiv.org/abs/2002.08053)(**ICML 2020**), [CC](https://arxiv.org/abs/2007.08929)(**NeurIPS 2020**), [LWS](https://arxiv.org/abs/2106.05731)(**ICML 2021**), [CAVL](https://openreview.net/pdf?id=qqdXHUGec9h)(**ICLR 2022**)!
 - [2024-09]🌟 Initial version of UPB is released.
@@ -56,7 +56,7 @@ Welcome to (**PartialCLIP**): a unified partial label learning benchmark for cla
 
 ### 🔎 Datasets
 
-### PLL Datasets
+### ST-PLL Datasets
 
 Put files in the following locations and change the path in the data configure files in [configs/data](configs/data):
 
@@ -207,14 +207,6 @@ Path/To/FGVC-Aircraft
 
 ## ☄️ how to use
 
-### 🕹️ Clone
-
-Clone this GitHub repository:
-
-```
-git clone https://github.com/SEU-hk/UPB-A-Unified-Partial-label-learning-Benchmark.git
-cd UPB-A-Unified-Partial-label-learning-Benchmark
-```
 
 ### 🗂️ Dependencies
 
@@ -255,15 +247,17 @@ timm==0.6.12
 ### Reproduction
 
 ```bash
-# PLL: run LIFT on CIFAR-100 (with partial_rate=0.1)  
+# ST-PLL: run PartialCLIP on CIFAR-100 (with partial_rate=0.1)  
 python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True  
 
-# LT-PLL: run LIFT on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
+# LT-PLL: run PartialCLIP on CIFAR-100-LT (with imbalanced ratio=100 and partial_rate=0.1)  
 python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
 
-# ID-PLL: run LIFT on fgvc100 (with pretrained wrn)   
+# ID-PLL: run PartialCLIP on fgvc100 (with pretrained wrn)   
 python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
 ```
+
+In ID-PLL, pretrained weights should be downloaded into folder "weights".
 
 For other experiments, please refer to [scripts](scripts) for reproduction commands.
 
@@ -275,25 +269,24 @@ To train and test the proposed method on more settings, run
 python main.py -d [data] -m [model] -p [partial_rate] -l [loss_type] -e [num_epochs] -g [gpu] -lr [learning_rate] [options]
 ```
 
-The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`, `inat2018`, `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
+The `[data]` can be the name of a .yaml file in [configs/data](configs/data), including `imagenet_lt`, `places_lt`,  `cifar100_ir100`, `cifar100_ir50`, `cifar100_ir10`, etc.
 
 The `[model]` can be the name of a .yaml file in [configs/model](configs/model), including `clip_rn50`, `clip_vit_b16`, `in21k_vit_b16`, etc.
 
-The `[partial_rate]` refers to unifrom sampling strategy(uss) when 0 < p < 1; flip probability strategy (fps) when p = 0; instance dependent gengeration when p equal other values.
+The `[partial_rate]` refers to flip probability strategy (fps) when 0 < p < 1; unifrom sampling strategy(uss) when p = 0; instance dependent gengeration when p equal other values.
 
 The `[loss_type]` can be any algorithm in file "algorithms.py"
 
-The `[num_epochs]` can be epoches during training for convergence.
+The `[num_epochs]` is the number of epochs required for the entire training process to converge.
 
 The `[gpu]` specify which GPU to run on.
 
 The `[learning_rate]` specify the learning rate especially for full fine-tuning.
 
-Note that using only `-d` and `-m` options denotes only fine-tuning the classifier. Please use additional `[options]` for more settings. 
+Please use additional `[options]` for more settings. 
 
 - To apply lightweight fine-tuning methods, add options like `lora True`, `adaptformer True`, etc.
 
-- To apply test-time ensembling, add `tte True`.
 
 Moreover, `[options]` can facilitate modifying the configure options in [utils/config.py](utils/config.py). Following are some examples.
 
@@ -352,33 +345,47 @@ class Algorithm(torch.nn.Module):
 ### Already included algorithms & datasets
 |Type|Algorithms|Datasets|
 |---|---|---|
-|PLL|CC LWS CAVL CORR PRODEN ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|ST-PLL|CC LWS CAVL CORR PRODEN ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
 |LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
-|ID-PLL|ABLE POP IDGP|CIFAR-10 / CIFAR-100 / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
+|ID-PLL|ABLE POP IDGP|CIFAR-10-ID / CIFAR-100-ID / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
+|Real-world PLL|All PLL and ID-PLL Methods|PLCIFAR10-Aggregate PLCIFAR10-Vaguest|
 
-**PLL**: An instance corresponding to a candidate label set rather than a single label. 
+**ST-PLL**: An instance corresponding to a candidate label set rather than a single label. 
 
 **LT-PLL**: The number of instances follows a long-tailed distribution.
 
 **ID-PLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
 
+## Pretrained Weights
+
+This repository includes pretrained model weights for the **PartialCLIP** project.
+[Pretrained Weight]: (https://drive.google.com/drive/folders/1WdSnrCj0TIbgqrgS2wR3K3zHgvEg4b7b?usp=drive_link)
+
+Note: PLCIFAR10 is available in the work entitled *PLENCH: Realistic Evaluation of Deep Partial-Label Learning Algorithms*. (https://arxiv.org/abs/2502.10184)
+
+### Download Instructions
+
+1. **Download the weights**: Obtain the `.pt` file from this repository
+
+2. **Place the file**: Move the downloaded `.pt` file into the `weights/` directory located at the root of the `PartialCLIP` codebase.
+
+   Your directory structure should resemble the following:
+
+   ```bash
+   PartialCLIP/
+   ├── weights/
+   │   └── your_model_weights.pt
+   ├── main.py
+   └── ...
+   ```
 
 ### Hardware
 
-Most experiments can be reproduced using a single GPU with 48GB of memory (larger models such as ViT-L require more memory).
+Most experiments can be reproduced using a single GPU with 48GB of memory.
 
 - To further reduce the GPU memory cost, gradient accumulation is recommended. Please refer to [Usage](#usage) for detailed instructions.
 
 
-## 👨‍🏫 Acknowledgments
 
-We thank the authors for the following repositories for code reference:
 
-## 🤗 Contact
-
-If there are any questions, please feel free to  propose new features by opening an issue or contact with the author: **Kuang He**([he_k@seu.edu.cn](mailto:he_k@seu.edu.cn)) and **Tong Wei**([weit@seu.edu.cn](mailto:weit@seu.edu.cn)). Enjoy the code.
-
-## Citation
-
-If you find this repo useful for your work, please cite as:
 

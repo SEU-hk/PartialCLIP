@@ -58,6 +58,10 @@ _C.tte_mode = "fivecrop" # "fivecrop" / "tencrop" / "randaug"
 _C.randaug_times = 1
 
 _C.zero_shot = False  # zero-shot CLIP (only for CLIP)
+_C.linear_probing = False  # linear-probing CLIP (only for CLIP)
 _C.test_only = False  # load model and test
 _C.test_train = False  # load model and test on the training set
 _C.model_dir = None
+
+_C.pre_filter = False # use zero-shot results
+_C.infer_train = False # save zero-shot results on train data

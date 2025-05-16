@@ -5,9 +5,9 @@ from torch.nn import functional as F
 from sklearn.linear_model import LogisticRegression
 
 from .clip_text import CLIP_Text
-from finetune.peft_vit import *
-from finetune.peft_rn import Peft_RN, RN_Tuner
-from head.classifiers import *
+from ..finetune.peft_vit import *
+from ..finetune.peft_rn import Peft_RN, RN_Tuner
+from ..head.classifiers import *
 
 class ViT(nn.Module):
     def __init__(self, clip_model):

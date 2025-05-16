@@ -15,7 +15,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision import models as vmodels
-from datasets.inat2018 import iNaturalist2018_Augmentention
 
 from clip import clip
 from timm.models.vision_transformer import vit_base_patch16_224, vit_base_patch16_384, vit_large_patch16_224
@@ -26,6 +25,7 @@ import datasets
 from models import *
 from datasets.cifar10 import *
 from datasets.cifar100 import *
+from datasets.places_lt import *
 
 from utils.meter import AverageMeter
 from utils.samplers import DownSampler
@@ -164,7 +164,7 @@ class Trainer:
             if cfg.dataset.startswith("CIFAR"):
                 self.train_givenY = CIFAR_Augmentation(data, partialY.float(), labels.float(), transform_train, transform_plain)
             else:
-                self.train_givenY = iNaturalist2018_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
+                self.train_givenY = Places_Augmentention(data, partialY.float(), labels.float(), transform_train, transform_plain)
             
             self.partialY = partialY
             
@@ -479,40 +479,57 @@ class Trainer:
 
 
     def save_model(self, directory):
-        tuner_dict = self.tuner.state_dict()
+        # Initialize checkpoint dictionary
+        checkpoint = {}
+        
+        # Save head parameters (always saved)
         head_dict = self.head.state_dict()
-        checkpoint = {
-            "tuner": tuner_dict,
-            "head": head_dict
-        }
-
-        # remove 'module.' in state_dict's keys
-        for key in ["tuner", "head"]:
+        
+        # Save tuner parameters if it exists
+        if self.tuner is not None:
+            tuner_dict = self.tuner.state_dict()
+            checkpoint["tuner"] = tuner_dict
+        else:
+            print("Warning: tuner is None. Skipping tuner state_dict save.")
+        
+        checkpoint["head"] = head_dict
+        
+        # Remove 'module.' prefix from state_dict keys (for DataParallel models)
+        for key in checkpoint.keys():
             state_dict = checkpoint[key]
             new_state_dict = OrderedDict()
             for k, v in state_dict.items():
                 if k.startswith("module."):
-                    k = k[7:]
+                    k = k[7:]  # Remove 'module.' prefix
                 new_state_dict[k] = v
             checkpoint[key] = new_state_dict
-
-        # save model
+        
+        # Save model checkpoint
+        os.makedirs(directory, exist_ok=True)  # Ensure directory exists
         save_path = os.path.join(directory, "checkpoint.pth.tar")
         torch.save(checkpoint, save_path)
         print(f"Checkpoint saved to {save_path}")
 
     def load_model(self, directory):
         load_path = os.path.join(directory, "checkpoint.pth.tar")
-
+        
         if not os.path.exists(load_path):
-            raise FileNotFoundError('Checkpoint not found at "{}"'.format(load_path))
-
+            raise FileNotFoundError(f'Checkpoint not found at "{load_path}"')
+        
         checkpoint = torch.load(load_path, map_location=self.device)
-        tuner_dict = checkpoint["tuner"]
         head_dict = checkpoint["head"]
-
-        print("Loading weights to from {}".format(load_path))
-        self.tuner.load_state_dict(tuner_dict, strict=False)
-
+        
+        # Load tuner weights if tuner exists and checkpoint contains tuner
+        if self.tuner is not None and "tuner" in checkpoint:
+            tuner_dict = checkpoint["tuner"]
+            print(f"Loading tuner weights from {load_path}")
+            self.tuner.load_state_dict(tuner_dict, strict=False)
+        else:
+            print("Warning: tuner is None or checkpoint does not contain tuner. Skipping tuner load.")
+        
+        # Load head weights with shape validation
         if head_dict["weight"].shape == self.head.weight.shape:
+            print(f"Loading head weights from {load_path}")
             self.head.load_state_dict(head_dict, strict=False)
+        else:
+            print(f"Head weight shape mismatch. Expected {self.head.weight.shape}, got {head_dict['weight'].shape}")

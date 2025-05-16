@@ -241,8 +241,6 @@ def load_cifar100_lt(cfg, transform_train, transform_test, transform_plain):
     if cfg.pre_filter == True:
         partialY, data, labels = pre_filter(cfg, partialY, data, labels)
 
-    # train_givenY = CIFAR100_Partialize(data, partialY.float(), labels.float())
-
     train_givenY = CIFAR_Augmentation(data, partialY.float(), labels.float(), transform_train, transform_plain)
     
     print('Average candidate num: ', partialY.sum(1).mean())

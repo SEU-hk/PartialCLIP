@@ -135,7 +135,6 @@ class CUB200_Partialize(Dataset):
 
         each_image_w = self.weak_transform(img)
         each_image_s = self.strong_transform(img)
-        each_image_distill= self.distill_transform(img)
         each_label = self.given_partial_label_matrix[index]
         each_true_label = self.true_labels[index]
 

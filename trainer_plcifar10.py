@@ -60,6 +60,16 @@ class Trainer:
         root = cfg.root
         resolution = cfg.resolution
 
+        # Define the target folder path
+        weights_dir = "weights"
+
+        # Check if the folder exists; create it if not
+        if not os.path.exists(weights_dir):
+            os.makedirs(weights_dir)
+            print(f"Created folder: {weights_dir}")
+        else:
+            print(f"Folder already exists: {weights_dir}")
+    
         if cfg.backbone.startswith("IN21K"):
             mean = [0.5, 0.5, 0.5]
             std = [0.5, 0.5, 0.5]
@@ -423,40 +433,57 @@ class Trainer:
 
 
     def save_model(self, directory):
-        tuner_dict = self.tuner.state_dict()
+        # Initialize checkpoint dictionary
+        checkpoint = {}
+        
+        # Save head parameters (always saved)
         head_dict = self.head.state_dict()
-        checkpoint = {
-            "tuner": tuner_dict,
-            "head": head_dict
-        }
-
-        # remove 'module.' in state_dict's keys
-        for key in ["tuner", "head"]:
+        
+        # Save tuner parameters if it exists
+        if self.tuner is not None:
+            tuner_dict = self.tuner.state_dict()
+            checkpoint["tuner"] = tuner_dict
+        else:
+            print("Warning: tuner is None. Skipping tuner state_dict save.")
+        
+        checkpoint["head"] = head_dict
+        
+        # Remove 'module.' prefix from state_dict keys (for DataParallel models)
+        for key in checkpoint.keys():
             state_dict = checkpoint[key]
             new_state_dict = OrderedDict()
             for k, v in state_dict.items():
                 if k.startswith("module."):
-                    k = k[7:]
+                    k = k[7:]  # Remove 'module.' prefix
                 new_state_dict[k] = v
             checkpoint[key] = new_state_dict
-
-        # save model
+        
+        # Save model checkpoint
+        os.makedirs(directory, exist_ok=True)  # Ensure directory exists
         save_path = os.path.join(directory, "checkpoint.pth.tar")
         torch.save(checkpoint, save_path)
         print(f"Checkpoint saved to {save_path}")
 
     def load_model(self, directory):
         load_path = os.path.join(directory, "checkpoint.pth.tar")
-
+        
         if not os.path.exists(load_path):
-            raise FileNotFoundError('Checkpoint not found at "{}"'.format(load_path))
-
+            raise FileNotFoundError(f'Checkpoint not found at "{load_path}"')
+        
         checkpoint = torch.load(load_path, map_location=self.device)
-        tuner_dict = checkpoint["tuner"]
         head_dict = checkpoint["head"]
-
-        print("Loading weights to from {}".format(load_path))
-        self.tuner.load_state_dict(tuner_dict, strict=False)
-
+        
+        # Load tuner weights if tuner exists and checkpoint contains tuner
+        if self.tuner is not None and "tuner" in checkpoint:
+            tuner_dict = checkpoint["tuner"]
+            print(f"Loading tuner weights from {load_path}")
+            self.tuner.load_state_dict(tuner_dict, strict=False)
+        else:
+            print("Warning: tuner is None or checkpoint does not contain tuner. Skipping tuner load.")
+        
+        # Load head weights with shape validation
         if head_dict["weight"].shape == self.head.weight.shape:
+            print(f"Loading head weights from {load_path}")
             self.head.load_state_dict(head_dict, strict=False)
+        else:
+            print(f"Head weight shape mismatch. Expected {self.head.weight.shape}, got {head_dict['weight'].shape}")

@@ -1,0 +1,2 @@
+dataset: "CIFAR100_IR20"
+root: "./data"
