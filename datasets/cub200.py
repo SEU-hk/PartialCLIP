@@ -22,7 +22,7 @@ def load_cub200(cfg, transform_train, transform_test):
     num_instances = len(original_train)
 
     classnames = []
-    with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/cub200.txt', 'r') as file:
+    with open('data/classnames/cub200.txt', 'r') as file:
         for line in file.readlines():
             classnames.append(line.strip())
  
@@ -71,7 +71,7 @@ def cpl_cub200(cfg, transform_train, transform_test):
     num_instances = len(original_train)
 
     classnames = []
-    with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/cub200.txt', 'r') as file:
+    with open('data/classnames/cub200.txt', 'r') as file:
         for line in file.readlines():
             classnames.append(line.strip())
             

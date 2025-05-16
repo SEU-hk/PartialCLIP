@@ -23,7 +23,7 @@ def load_fgvc100(cfg, transform_train, transform_test):
     num_instances = len(original_train)
 
     classnames = []
-    with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/fgvc100.txt', 'r') as file:
+    with open('data/classnames/fgvc100.txt', 'r') as file:
         for line in file.readlines():
             classnames.append(line.strip())
  
@@ -65,36 +65,6 @@ def load_fgvc100(cfg, transform_train, transform_test):
     
     return partial_training_dataloader, train_test_loader, partialY_matrix, test_loader, num_instances, num_classes, classnames
 
-
-def cpl_fgvc100(cfg, transform_train, transform_test):
-    original_train = dsets.FGVCAircraft(root=cfg.root, split='trainval', transform=transform_train, download=False)
-    original_full_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=len(original_train),
-                                                       shuffle=False, num_workers=20)
-    ori_data, ori_labels = next(iter(original_full_loader))
-    ori_labels = ori_labels.long()
-    
-    num_instances = len(original_train)
-
-    classnames = []
-    with open('/home/hekuang/LIFT-main/LIFT2/data/classnames/fgvc100.txt', 'r') as file:
-        for line in file.readlines():
-            classnames.append(line.strip())
- 
-    label_to_idx = {}
-    for idx, classname in enumerate(classnames):
-        label_to_idx[classname] = idx
-                
-    num_classes = len(classnames)
-    print(num_classes)
-
-    test_dataset = dsets.FGVCAircraft(root=cfg.root, split='test', transform=transform_test)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=8)
-
-    
-    train_test_loader = torch.utils.data.DataLoader(dataset=original_train, batch_size=cfg.batch_size,
-                                                       shuffle=False, num_workers=20)
-    
-    return original_train, ori_data, ori_labels, train_test_loader, test_loader, num_instances, num_classes, classnames, label_to_idx
 
 
 class FGVC100_Partialize(Dataset):

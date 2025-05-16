@@ -349,11 +349,7 @@ class IDGP(Algorithm):
     def __init__(self, model, input_shape, train_givenY, hparams):
         super(IDGP, self).__init__(model, input_shape, train_givenY, hparams)
         self.model = model
-        # self.featurizer_f = self.model.image_encoder
-        # self.classifier_f = torch.nn.Linear(
-        #     self.featurizer_f.out_dim,
-        #     self.num_classes)
-        # self.f = nn.Sequential(self.featurizer_f, self.classifier_f)
+
         self.f = self.model
         self.f_opt = torch.optim.Adam(
             self.f.parameters(),
@@ -361,11 +357,6 @@ class IDGP(Algorithm):
             weight_decay=self.hparams['weight_decay']
         )
 
-        # self.featurizer_g = copy.deepcopy(self.model.image_encoder)
-        # self.classifier_g = torch.nn.Linear(
-        #     self.featurizer_g.out_dim,
-        #     self.num_classes)
-        # self.g = nn.Sequential(self.featurizer_g, self.classifier_g)
         self.g = copy.deepcopy(self.model)
         self.g_opt = torch.optim.Adam(
             self.g.parameters(),
