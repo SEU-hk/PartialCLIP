@@ -1,6 +1,6 @@
 # Tuning the Right Foundation Models is What you Need for Partial Label Learning
 
-This is the source code for the paper.
+This is the source code for the paper. [[paper](https://arxiv.org/abs/2506.05027)] 
 
 <p align="center">
   <a href="#-introduction">🎉Introduction</a> •
