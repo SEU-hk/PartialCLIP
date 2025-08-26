@@ -332,7 +332,7 @@ class Algorithm(torch.nn.Module):
 ### Already included algorithms & datasets
 |Type|Algorithms|Datasets|
 |---|---|---|
-|ST-PLL|CC LWS CAVL CORR PRODEN ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
+|ST-PLL|CC LWS CAVL CRDPLL PRODEN ABS-MAE ABS-GCE|CIFAR-10 / CIFAR-100 |
 |LT-PLL|Solar RECORDS HTC|CIFAR-10-LT / CIFAR-100-LT / Places-LT / ImageNet-LT |
 |ID-PLL|ABLE POP IDGP|CIFAR-10-ID / CIFAR-100-ID / FGVC100 / CUB200 / Stanford Cars196 / Stanford DOGS120|
 |Real-world PLL|All PLL and ID-PLL Methods|PLCIFAR10-Aggregate PLCIFAR10-Vaguest|
