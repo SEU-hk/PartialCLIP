@@ -241,7 +241,7 @@ python main.py -d cifar100 -m clip_vit_b16 -p 0.1 -l CC adaptformer True
 python main.py -d cifar100_ir100 -m clip_vit_b16 -p 0.1 -l HTC adaptformer True  
 
 # ID-PLL: run PartialCLIP on fgvc100 (with pretrained wrn)   
-python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True    
+python main.py -d fgvc100 -m clip_vit_b16 -p 2 -l POP adaptformer True  
 ```
 
 In ID-PLL, pretrained weights should be downloaded into folder "weights".
@@ -342,6 +342,15 @@ class Algorithm(torch.nn.Module):
 **LT-PLL**: The number of instances follows a long-tailed distribution.
 
 **ID-PLL**: The noisy labels are very similar to the ground-truth label. The genneration process of candidate sets are dependent on instance itself.
+
+
+### Candidate label set generation strategies
+**Uniform Sampling Strategy (USS)**: For each sample, aside from the ground truth label, the remaining ( K-1 ) labels each have two possible states—either included in the candidate label set or not. Importantly, every possible candidate label set (regardless of its size) has an equal probability of being generated.
+
+**Flip Probability Sampling Strategy (FPS)**: For each instance, each false-positive label ( y ) is incorporated into the candidate label set with a fixed probability parameter η.
+
+**Instance-Dependent Generation**: This method employs a lightweight neural network to generate instance-specific candidate label sets, which are tailored to the unique characteristics of each individual sample.
+
 
 ## Pretrained Weights
 
