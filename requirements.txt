@@ -6,3 +6,4 @@ tqdm
 ftfy
 regex
 timm
+open_clip_torch
