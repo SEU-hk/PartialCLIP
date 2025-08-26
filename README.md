@@ -27,7 +27,6 @@ Welcome to (**PartialCLIP**): a unified partial label learning benchmark for cla
 - `LWS`: Leveraged Weighted Loss for Partial Label Learning. ICML 2021 [[paper](https://arxiv.org/abs/2106.05731)]
 - `CAVL`: Exploiting Class Activation Value for Partial-Label Learning. ICLR 2022 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
 - `CRDPLL`: Revisiting Consistency Regularization for Deep Partial Label Learning. ICML 2022 [[paper](https://palm.seu.edu.cn/zhangml/files/ICML'22a.pdf)]
-- `PiCO`: PICO: Contrastive Label Disambiguation for Partial Label Learning. ICLR2022 [[paper](https://arxiv.org/pdf/2007.08929)]
 - `ABS-MAE ABS-GCE`: On the Robustness of Average Losses for Partial-Label Learning. TPAMI 2023 [[paper](https://openreview.net/pdf?id=qqdXHUGec9h)]
 
 **LT-PLL**
@@ -208,8 +207,8 @@ Path/To/FGVC-Aircraft
 To install requirements, run:
 
 ```sh
-conda create -n lift python=3.8 -y
-conda activate lift
+conda create -n partialclip python=3.8 -y
+conda activate partialclip
 conda install pytorch==2.0.0 torchvision==0.15.0 pytorch-cuda=11.7 -c pytorch -c nvidia
 conda install tensorboard
 pip install -r requirements.txt
