@@ -37,7 +37,7 @@ from utils.pll_loss import *
 from utils.evaluator import Evaluator, compute_accuracy
 from utils.templates import ZEROSHOT_TEMPLATES
 from utils.visual import *
-from algorithms import *
+from algorithms2 import *
 from utils.util import *
 from utils.candidate_set_generation import *
 
@@ -344,7 +344,7 @@ class Trainer:
         self.model.eval()
         for batch in tqdm(self.train_test_loader, desc="Generating zero-shot predictions"):
             image = batch[0].to(self.device)
-            output, _ = self.model(image)  # output是logits
+            output, _ = self.model(image)  
             zeroshot_pred = F.softmax(output, dim=1)  # 转换为概率/置信度
             zeroshot_predictions.append(zeroshot_pred.cpu())
         
@@ -421,7 +421,7 @@ class Trainer:
         print("Initialize head with text features")
         if cfg.prompt == "ensemble":
             all_text_features = []
-            for template in tqdm(ZEROSHOT_TEMPLATES['imagenet']):
+            for template in tqdm(ZEROSHOT_TEMPLATES[cfg.dataset]):
                 prompts = self.get_tokenized_prompts(classnames, template)
                 text_features = self.model.encode_text(prompts)
                 text_features = F.normalize(text_features, dim=-1)

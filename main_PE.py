@@ -8,7 +8,7 @@ from utils.config import _C as cfg
 from utils.logger import setup_logger
 from utils.hparams_registry import *
 
-from trainer import Trainer
+from PE import Trainer
 
 def main(args):
     cfg_data_file = os.path.join("./configs/data", args.data + ".yaml")
@@ -23,10 +23,14 @@ def main(args):
     cfg['loss_type'] = args.loss_type
     cfg['num_epochs'] = args.num_epochs
     cfg['gpu'] = args.gpu
+    ## Prompt Engineering
+    cfg.use_multiple_templates = True
+
     hparams = default_hparams(args.loss_type, args.data)
     for key, value in hparams.items():
         cfg[key] = value
-        
+    
+    cfg['prompt'] = "ensemble"
     cfg['lr'] = args.learning_rate
     
     if cfg.pre_filter == True:
