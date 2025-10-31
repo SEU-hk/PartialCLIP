@@ -23,6 +23,8 @@ def main(args):
     cfg['loss_type'] = args.loss_type
     cfg['num_epochs'] = args.num_epochs
     cfg['gpu'] = args.gpu
+    ## Prompt Engineering
+    cfg.use_multiple_templates = True
     hparams = default_hparams(args.loss_type, args.data)
     for key, value in hparams.items():
         cfg[key] = value
@@ -108,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--partial_rate", "-p", type=float, default=0.1, help="partial rate")
     parser.add_argument("--loss_type", "-l", type=str, default="Proden", help="loss type")
     parser.add_argument("--num_epochs", "-e", type=int, default="10", help="epochs")
-    parser.add_argument("--gpu", "-g", type=int, default=1, help="gpu_id")
+    parser.add_argument("--gpu", "-g", type=int, default=0, help="gpu_id")
     parser.add_argument("--learning_rate","-lr", type=float, default=0.0005, help="learning_rate")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER,
                         help="modify config options using the command-line")
