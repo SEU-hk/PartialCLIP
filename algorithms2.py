@@ -302,27 +302,22 @@ class CRDPLL(Algorithm):
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
-        # 如果提供了zero-shot初始化，使用它来初始化confidence
+        # 使用原始方式初始化置信度，zeroshot_init 不影响此初始化
+        # train_givenY = torch.from_numpy(train_givenY)
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        label_confidence = train_givenY.float() / tempY
+        self.label_confidence = label_confidence
+        
+        # 保存zeroshot_init用于KL散度对齐
+        self.zeroshot_init = zeroshot_init
         if zeroshot_init is not None:
-            print(f"Using zero-shot initialization with shape: {zeroshot_init.shape}")
-            # 将zero-shot结果与partial labels结合
-            combined_confidence = zeroshot_init * train_givenY  # 只保留partial label范围内的预测
-            combined_confidence = combined_confidence / combined_confidence.sum(dim=1, keepdim=True)
-            self.label_confidence = combined_confidence
-        else:
-            # train_givenY = torch.from_numpy(train_givenY)
-            tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
-            label_confidence = train_givenY.float() / tempY
-            self.label_confidence = label_confidence
-        # 保存初始置信度用于KL散度对齐
-        self.initial_label_confidence = self.label_confidence.clone()
+            print(f"CRDPLL using zero-shot initialization for KL alignment with shape: {zeroshot_init.shape}")
+
         self.consistency_criterion = nn.KLDivLoss(reduction='batchmean')
         self.train_givenY=train_givenY
         self.lam = 1
         self.curr_iter = 0
-        self.max_steps = self.hparams['num_epochs']
-        # KL散度相关参数
-        self.total_epochs = self.hparams['num_epochs']
+        self.max_steps = self.hparams['num_epochs'] # 只保留 max_steps
         self.current_epoch = 0
 
     def update(self, minibatches, epoch_idx=None):
@@ -332,7 +327,7 @@ class CRDPLL(Algorithm):
         x, strong_x, partial_y, _, index = minibatches
         # 计算CR loss (包含一致性正则化)
         loss = self.cr_loss(self.predict(x), self.predict(strong_x), index)
-        # 计算KL散度对齐loss
+        # 计算KL散度对齐loss (使用zeroshot_init作为目标)
         kl_loss = self.kl_alignment_loss(self.predict(x), index)
         # 计算动态权重
         kl_weight = self.get_kl_weight()
@@ -347,23 +342,29 @@ class CRDPLL(Algorithm):
 
     def kl_alignment_loss(self, outputs, index):
         """
-        计算KL散度对齐loss，使模型输出与初始的label_confidence对齐
+        计算KL散度对齐loss，使模型输出与zeroshot_init对齐
+        如果zeroshot_init为None，则返回0
         """
-        device = "cuda" if index.is_cuda else "cpu"
+        if self.zeroshot_init is None:
+            # 如果没有提供zero-shot初始化，则不计算KL loss
+            return torch.tensor(0.0, device=outputs.device, dtype=outputs.dtype)
+
+        device = "cuda" if outputs.is_cuda else "cpu"
         current_outputs = F.softmax(outputs, dim=1)
-        # 获取当前batch的初始confidence
-        initial_confidence = self.initial_label_confidence[index, :].to(device)
+        # 获取当前batch的zero-shot初始化
+        zeroshot_batch = self.zeroshot_init[index, :].to(device)
         # 避免log(0)的情况，添加小的epsilon值
         epsilon = 1e-8
         current_outputs = current_outputs + epsilon
-        initial_confidence = initial_confidence + epsilon
+        zeroshot_batch = zeroshot_batch + epsilon
         # 归一化（确保和为1）
         current_outputs = current_outputs / current_outputs.sum(dim=1, keepdim=True)
-        initial_confidence = initial_confidence / initial_confidence.sum(dim=1, keepdim=True)
+        # 确保zero-shot本身也是归一化的 (虽然加载时通常是归一化的)
+        zeroshot_batch = zeroshot_batch / zeroshot_batch.sum(dim=1, keepdim=True)
         # 计算KL散度
         kl_loss = F.kl_div(
             torch.log(current_outputs),
-            initial_confidence,
+            zeroshot_batch,
             reduction='batchmean',
             log_target=False
         )
@@ -372,11 +373,11 @@ class CRDPLL(Algorithm):
     def get_kl_weight(self):
         """
         根据当前epoch计算KL loss的权重
-        在0.5*total_epochs时权重降为0
+        在0.5*max_steps时权重降为0
         """
-        if self.total_epochs is None:
+        if self.max_steps is None:
             return 0.0  # 如果没有总epoch数，不使用KL loss
-        mid_epoch = 0.5 * self.total_epochs
+        mid_epoch = 0.5 * self.max_steps
         if self.current_epoch < mid_epoch:
             # 线性衰减：从0.5到0.0
             weight = 0.5 - (self.current_epoch / mid_epoch) * 0.5  # 从0.5线性衰减到0
@@ -426,10 +427,11 @@ class CC(Algorithm):
             lr=self.hparams["lr"],
             weight_decay=self.hparams['weight_decay']
         )
-        # CC算法本身不维护置信度矩阵，但接收初始化参数
+        # 保存zeroshot_init用于KL散度对齐
+        self.zeroshot_init = zeroshot_init
         if zeroshot_init is not None:
-            print(f"CC algorithm received zero-shot initialization (shape: {zeroshot_init.shape}), but does not use it.")
-        # KL散度相关参数 (即使CC不直接使用置信度，也可以为模型输出添加KL对齐)
+            print(f"CC algorithm using zero-shot initialization for KL alignment with shape: {zeroshot_init.shape}")
+
         self.total_epochs = self.hparams['num_epochs']
         self.current_epoch = 0
 
@@ -440,8 +442,8 @@ class CC(Algorithm):
         x, strong_x, partial_y, _, index = minibatches
         # 计算CC loss
         loss = self.cc_loss(self.predict(x), partial_y)
-        # 计算KL散度对齐loss (使用partial_y作为初始目标)
-        kl_loss = self.kl_alignment_loss(self.predict(x), partial_y)
+        # 计算KL散度对齐loss (使用zeroshot_init作为目标)
+        kl_loss = self.kl_alignment_loss(self.predict(x), index)
         # 计算动态权重
         kl_weight = self.get_kl_weight()
         # 组合loss
@@ -451,29 +453,34 @@ class CC(Algorithm):
         self.optimizer.step()
         return total_loss # 返回loss张量
 
-    def kl_alignment_loss(self, outputs, initial_targets):
+    def kl_alignment_loss(self, outputs, index):
         """
-        计算KL散度对齐loss，使模型输出与初始的targets对齐
-        对于CC，使用partial_y作为初始目标
+        计算KL散度对齐loss，使模型输出与zeroshot_init对齐
+        如果zeroshot_init为None，则返回0
         """
+        if self.zeroshot_init is None:
+            # 如果没有提供zero-shot初始化，则不计算KL loss
+            return torch.tensor(0.0, device=outputs.device, dtype=outputs.dtype)
+
         device = "cuda" if outputs.is_cuda else "cpu"
         current_outputs = F.softmax(outputs, dim=1)
-        # 获取当前batch的初始targets，归一化到partial label范围内
-        initial_targets_batch = initial_targets
-        # 归一化 (在partial label范围内)
-        initial_targets_batch = initial_targets_batch / (initial_targets_batch.sum(dim=1, keepdim=True) + 1e-8)
-        initial_targets_batch = initial_targets_batch.to(device)
+        # 获取当前batch的zero-shot初始化
+        zeroshot_batch = self.zeroshot_init[index, :].to(device)
+
         # 避免log(0)的情况，添加小的epsilon值
         epsilon = 1e-8
         current_outputs = current_outputs + epsilon
-        initial_targets_batch = initial_targets_batch + epsilon
+        zeroshot_batch = zeroshot_batch + epsilon
+
         # 归一化（确保和为1）
         current_outputs = current_outputs / current_outputs.sum(dim=1, keepdim=True)
-        initial_targets_batch = initial_targets_batch / initial_targets_batch.sum(dim=1, keepdim=True)
+        # 确保zero-shot本身也是归一化的 (虽然加载时通常是归一化的)
+        zeroshot_batch = zeroshot_batch / zeroshot_batch.sum(dim=1, keepdim=True)
+
         # 计算KL散度
         kl_loss = F.kl_div(
             torch.log(current_outputs),
-            initial_targets_batch,
+            zeroshot_batch,
             reduction='batchmean',
             log_target=False
         )
@@ -502,39 +509,7 @@ class CC(Algorithm):
 
     def predict(self, x):
         return self.network(x)[0]
-        
-# class CC(Algorithm):
-#     """
-#     CC
-#     Reference: Provably consistent partial-label learning, NeurIPS 2020.
-#     """
 
-#     def __init__(self, model, input_shape, train_givenY, hparams):
-#         super(CC, self).__init__(model, input_shape, train_givenY, hparams)
-
-#         self.network = model
-#         self.optimizer = torch.optim.Adam(
-#             self.network.parameters(),
-#             lr=self.hparams["lr"],
-#             weight_decay=self.hparams['weight_decay']
-#         )
-
-#     def update(self, minibatches):
-#         x, strong_x, partial_y, _, index = minibatches
-#         loss = self.cc_loss(self.predict(x), partial_y)
-#         self.optimizer.zero_grad()
-#         loss.backward()
-#         self.optimizer.step()
-#         return {'loss': loss.item()}
-
-#     def cc_loss(self, outputs, partialY):
-#         sm_outputs = F.softmax(outputs, dim=1)
-#         final_outputs = sm_outputs * partialY
-#         average_loss = - torch.log(final_outputs.sum(dim=1)).mean()
-#         return average_loss  
-
-#     def predict(self, x):
-#         return self.network(x)[0]
 
 
 
@@ -983,71 +958,6 @@ class ABS_GCE(Algorithm):
     def predict(self, x):
         return self.network(x)[0]
 
-
-
-
-# class CRDPLL(Algorithm):
-#     """
-#     CRDPLL
-#     Reference: Revisiting Consistency Regularization for Deep Partial Label Learning, ICML 2022.
-#     """
-
-#     def __init__(self, model, input_shape, train_givenY, hparams):
-#         super(CRDPLL, self).__init__(model, input_shape, train_givenY, hparams)
-
-#         self.network = model
-#         self.optimizer = torch.optim.Adam(
-#             self.network.parameters(),
-#             lr=self.hparams["lr"],
-#             weight_decay=self.hparams['weight_decay']
-#         )
-
-#         # train_givenY = torch.from_numpy(train_givenY)
-#         tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
-#         label_confidence = train_givenY.float() / tempY
-#         self.label_confidence = label_confidence
-
-#         self.consistency_criterion = nn.KLDivLoss(reduction='batchmean')
-#         self.train_givenY=train_givenY
-#         self.lam = 1
-#         self.curr_iter = 0
-#         self.max_steps = self.hparams['num_epochs']
-
-#     def update(self, minibatches):
-#         x, strong_x, partial_y, _, index = minibatches
-#         loss = self.cr_loss(self.predict(x), self.predict(strong_x), index)
-#         self.optimizer.zero_grad()
-#         loss.backward()
-#         self.optimizer.step()
-#         self.curr_iter = self.curr_iter + 1
-#         self.confidence_update(x,strong_x, partial_y, index)
-#         return {'loss': loss.item()}
-
-#     def cr_loss(self, outputs, strong_outputs, index):
-#         device = "cuda" if index.is_cuda else "cpu"
-#         self.label_confidence = self.label_confidence.to(device)
-#         self.consistency_criterion=self.consistency_criterion.to(device)
-#         self.train_givenY=self.train_givenY.to(device)
-#         consist_loss0 = self.consistency_criterion(F.log_softmax(outputs, dim=1), self.label_confidence[index, :].float())
-#         consist_loss1 = self.consistency_criterion(F.log_softmax(strong_outputs, dim=1), self.label_confidence[index, :].float())
-#         super_loss = -torch.mean(
-#             torch.sum(torch.log(1.0000001 - F.softmax(outputs, dim=1)) * (1 - self.train_givenY[index, :]), dim=1))
-#         lam = min((self.curr_iter / (self.max_steps*0.5)) * self.lam, self.lam)
-#         average_loss = lam * (consist_loss0 + consist_loss1) + super_loss
-#         return average_loss
-
-#     def predict(self, x):
-#         return self.network(x)[0]
-
-#     def confidence_update(self,batchX,strong_batchX,batchY,batch_index):
-#         with torch.no_grad():
-#             batch_outputs = self.predict(batchX)
-#             strong_batch_outputs=self.predict(strong_batchX)
-#             temp_un_conf=F.softmax(batch_outputs,dim=1)
-#             strong_temp_un_conf=F.softmax(strong_batch_outputs,dim=1)
-#             self.label_confidence[batch_index,:]=torch.pow(temp_un_conf,1/(1+1))*torch.pow(strong_temp_un_conf,1/(1+1))*batchY
-#             base_value=self.label_confidence[batch_index,:].sum(dim=1).unsqueeze(1).repeat(1,self.label_confidence[batch_index,:].shape[1])
-#             self.label_confidence[batch_index,:]=self.label_confidence[batch_index,:]/base_value
 
 
 
