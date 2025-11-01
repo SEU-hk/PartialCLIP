@@ -25,6 +25,7 @@ def main(args):
     cfg['gpu'] = args.gpu
     ## Prompt Engineering
     cfg.use_multiple_templates = True
+    cfg.init_with_zeroshot = True
 
     hparams = default_hparams(args.loss_type, args.data)
     for key, value in hparams.items():

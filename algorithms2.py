@@ -70,20 +70,15 @@ class PRODEN(Algorithm):
             weight_decay=self.hparams['weight_decay']
         )
         
-        # 如果提供了zero-shot初始化，使用它来初始化confidence
-        if zeroshot_init is not None:
-            print(f"Using zero-shot initialization with shape: {zeroshot_init.shape}")
-            # 将zero-shot结果与partial labels结合
-            combined_confidence = zeroshot_init * train_givenY  # 只保留partial label范围内的预测
-            combined_confidence = combined_confidence / combined_confidence.sum(dim=1, keepdim=True)
-            
-            self.label_confidence = combined_confidence
-        else:
-            tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
-            label_confidence = train_givenY.float()/tempY
-            self.label_confidence = label_confidence
+        # 使用原始方式初始化置信度，zeroshot_init 不影响此初始化
+        tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
+        label_confidence = train_givenY.float()/tempY
+        self.label_confidence = label_confidence
         
-        self.initial_label_confidence = self.label_confidence.clone()
+        # 保存zeroshot_init用于KL散度对齐
+        self.zeroshot_init = zeroshot_init
+        if zeroshot_init is not None:
+            print(f"PRODEN using zero-shot initialization for KL alignment with shape: {zeroshot_init.shape}")
 
         self.total_epochs = self.hparams['num_epochs']
         self.current_epoch = 0
@@ -98,13 +93,12 @@ class PRODEN(Algorithm):
             # 计算RC loss
             rc_loss = self.rc_loss(self.predict(x), index)
             
-            # 计算KL散度对齐loss（仅对PRODEN）
-            if hasattr(self, 'initial_label_confidence'):
-                kl_loss = self.kl_alignment_loss(self.predict(x), index)
-                kl_weight = self.get_kl_weight()
-                total_loss = kl_weight * kl_loss + (1 - kl_weight) * rc_loss
-            else:
-                total_loss = rc_loss
+            # 计算KL散度对齐loss
+            kl_loss = self.kl_alignment_loss(self.predict(x), index)
+            kl_weight = self.get_kl_weight()
+            
+            # 组合loss
+            total_loss = kl_weight * kl_loss + (1 - kl_weight) * rc_loss
             
             self.optimizer.zero_grad()
             total_loss.backward()
@@ -114,27 +108,32 @@ class PRODEN(Algorithm):
 
     def kl_alignment_loss(self, outputs, index):
         """
-        计算KL散度对齐loss，使模型输出与初始的label_confidence对齐
+        计算KL散度对齐loss，使模型输出与zeroshot_init对齐
+        如果zeroshot_init为None，则返回0
         """
-        device = "cuda" if index.is_cuda else "cpu"
+        if self.zeroshot_init is None:
+            # 如果没有提供zero-shot初始化，则不计算KL loss
+            return torch.tensor(0.0, device=outputs.device, dtype=outputs.dtype)
+            
+        device = "cuda" if outputs.is_cuda else "cpu"
         current_outputs = F.softmax(outputs, dim=1)
         
-        # 获取当前batch的初始confidence
-        initial_confidence = self.initial_label_confidence[index, :].to(device)
+        # 获取当前batch的zero-shot初始化
+        zeroshot_batch = self.zeroshot_init[index, :].to(device)
         
         # 避免log(0)的情况，添加小的epsilon值
         epsilon = 1e-8
         current_outputs = current_outputs + epsilon
-        initial_confidence = initial_confidence + epsilon
+        zeroshot_batch = zeroshot_batch + epsilon
         
         # 归一化（确保和为1）
         current_outputs = current_outputs / current_outputs.sum(dim=1, keepdim=True)
-        initial_confidence = initial_confidence / initial_confidence.sum(dim=1, keepdim=True)
+        zeroshot_batch = zeroshot_batch / zeroshot_batch.sum(dim=1, keepdim=True) # 确保zero-shot本身也是归一化的
         
         # 计算KL散度
         kl_loss = F.kl_div(
             torch.log(current_outputs),
-            initial_confidence,
+            zeroshot_batch,
             reduction='batchmean',
             log_target=False
         )
@@ -152,8 +151,8 @@ class PRODEN(Algorithm):
         mid_epoch = 0.5 * self.total_epochs
         
         if self.current_epoch < mid_epoch:
-            # 线性衰减：从1.0到0.0
-            weight = 1.0 - (self.current_epoch / mid_epoch)
+            # 线性衰减：从0.5到0.0
+            weight = 0.5 - (self.current_epoch / mid_epoch) * 0.5  # 从0.5线性衰减到0
         else:
             weight = 0.0
             
@@ -178,7 +177,6 @@ class PRODEN(Algorithm):
             base_value = self.label_confidence.sum(dim=1).unsqueeze(1).repeat(1, self.label_confidence.shape[1])
             self.label_confidence = self.label_confidence / base_value
 
-# ... (其他 import 和 ALGORITHMS 定义保持不变) ...
 
 class CAVL(Algorithm):
     """
@@ -412,108 +410,6 @@ class CRDPLL(Algorithm):
             base_value=self.label_confidence[batch_index,:].sum(dim=1).unsqueeze(1).repeat(1,self.label_confidence[batch_index,:].shape[1])
             self.label_confidence[batch_index,:]=self.label_confidence[batch_index,:]/base_value
 
-class ABS_MAE(Algorithm):
-    """
-    ABS_MAE
-    Reference: On the Robustness of Average Losses for Partial-Label Learning, TPAMI 2024.
-    """
-    def __init__(self, model, input_shape, train_givenY, hparams, zeroshot_init=None):
-        super(ABS_MAE, self).__init__(model, input_shape, train_givenY, hparams, zeroshot_init)
-        self.network = model
-        self.optimizer = torch.optim.Adam(
-            self.network.parameters(),
-            lr=self.hparams["lr"],
-            weight_decay=self.hparams['weight_decay']
-        )
-        # 如果提供了zero-shot初始化，使用它来初始化confidence
-        if zeroshot_init is not None:
-            print(f"Using zero-shot initialization with shape: {zeroshot_init.shape}")
-            # 将zero-shot结果与partial labels结合
-            combined_confidence = zeroshot_init * train_givenY  # 只保留partial label范围内的预测
-            combined_confidence = combined_confidence / combined_confidence.sum(dim=1, keepdim=True)
-            self.label_confidence = combined_confidence
-        else:
-            # train_givenY = torch.from_numpy(train_givenY)
-            tempY = train_givenY.sum(dim=1).unsqueeze(1).repeat(1, train_givenY.shape[1])
-            label_confidence = train_givenY.float()/tempY
-            self.label_confidence = label_confidence
-        # 保存初始置信度用于KL散度对齐
-        self.initial_label_confidence = self.label_confidence.clone()
-        # KL散度相关参数
-        self.total_epochs = self.hparams['num_epochs']
-        self.current_epoch = 0
-
-    def update(self, minibatches, epoch_idx=None):
-        # 更新当前epoch
-        if epoch_idx is not None:
-            self.current_epoch = epoch_idx
-        x, strong_x, partial_y, _, index = minibatches
-        device = "cuda" if partial_y.is_cuda else "cpu"
-        # 计算MAE loss
-        loss = self.mae_loss(self.predict(x), index, device)
-        # 计算KL散度对齐loss
-        kl_loss = self.kl_alignment_loss(self.predict(x), index)
-        # 计算动态权重
-        kl_weight = self.get_kl_weight()
-        # 组合loss
-        total_loss = kl_weight * kl_loss + (1 - kl_weight) * loss
-        self.optimizer.zero_grad()
-        total_loss.backward()
-        self.optimizer.step()
-        return total_loss # 返回loss张量
-
-    def kl_alignment_loss(self, outputs, index):
-        """
-        计算KL散度对齐loss，使模型输出与初始的label_confidence对齐
-        """
-        device = "cuda" if index.is_cuda else "cpu"
-        current_outputs = F.softmax(outputs, dim=1)
-        # 获取当前batch的初始confidence
-        initial_confidence = self.initial_label_confidence[index, :].to(device)
-        # 避免log(0)的情况，添加小的epsilon值
-        epsilon = 1e-8
-        current_outputs = current_outputs + epsilon
-        initial_confidence = initial_confidence + epsilon
-        # 归一化（确保和为1）
-        current_outputs = current_outputs / current_outputs.sum(dim=1, keepdim=True)
-        initial_confidence = initial_confidence / initial_confidence.sum(dim=1, keepdim=True)
-        # 计算KL散度
-        kl_loss = F.kl_div(
-            torch.log(current_outputs),
-            initial_confidence,
-            reduction='batchmean',
-            log_target=False
-        )
-        return kl_loss
-
-    def get_kl_weight(self):
-        """
-        根据当前epoch计算KL loss的权重
-        在0.5*total_epochs时权重降为0
-        """
-        if self.total_epochs is None:
-            return 0.0  # 如果没有总epoch数，不使用KL loss
-        mid_epoch = 0.5 * self.total_epochs
-        if self.current_epoch < mid_epoch:
-            # 线性衰减：从0.5到0.0
-            weight = 0.5 - (self.current_epoch / mid_epoch) * 0.5  # 从0.5线性衰减到0
-        else:
-            weight = 0.0
-        return weight
-
-    def mae_loss(self, outputs, index, device):
-        sm_outputs = F.softmax(outputs, dim=1)
-        sm_outputs = sm_outputs.unsqueeze(1)
-        sm_outputs = sm_outputs.expand([-1,self.num_classes,-1])
-        label_one_hot = torch.eye(self.num_classes).to(device)
-        loss = torch.abs(sm_outputs - label_one_hot).sum(dim=-1)
-        self.label_confidence = self.label_confidence.to(device)
-        loss = loss * self.label_confidence[index, :]
-        avg_loss = loss.sum(dim=1).mean()
-        return avg_loss
-
-    def predict(self, x):
-        return self.network(x)[0]
 
 class CC(Algorithm):
     """

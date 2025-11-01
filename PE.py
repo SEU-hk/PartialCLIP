@@ -380,9 +380,11 @@ class Trainer:
             print("Loading zero-shot confidence for initialization...")
             
             # 加载之前保存的zero-shot置信度
-            zeroshot_dir = "zeroshot_confidence"
+            zeroshot_dir = "zeroshot_confidence/"
+            # zeroshot_dir = "confidence/"
             zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}_zeroshot_confidence.pth")
-            
+            # zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}.pth")
+
             if os.path.exists(zeroshot_path):
                 zeroshot_confidence = torch.load(zeroshot_path, map_location=self.device)
                 
@@ -391,9 +393,6 @@ class Trainer:
                     zeroshot_confidence = zeroshot_confidence[:N]
                 else:
                     print(f"Warning: Zero-shot confidence has {zeroshot_confidence.shape[0]} samples, but need {N}")
-                    # 如果不够，可以重复最后一个样本或使用其他策略
-                    zeroshot_confidence = torch.cat([zeroshot_confidence, 
-                                                zeroshot_confidence[-1:].repeat(N - zeroshot_confidence.shape[0], 1)])
                 
                 zeroshot_init = zeroshot_confidence
                 print(f"Loaded zero-shot confidence with shape: {zeroshot_init.shape}")
@@ -489,10 +488,7 @@ class Trainer:
             with tqdm(total=num_batches, desc="Training", unit="batch") as pbar:
                 for batch in train_minibatches_iterator:
                     batch_device = [item.to(self.device) for item in batch]
-                    if cfg['loss_type'] in ['Solar', 'HTC']:
-                        loss = self.algorithm.update(batch_device, epoch_idx)
-                    else:
-                        loss = self.algorithm.update(batch_device)
+                    loss = self.algorithm.update(batch_device, epoch_idx)
                     
                     pbar.update(1)
             
