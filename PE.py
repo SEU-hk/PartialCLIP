@@ -203,8 +203,8 @@ class Trainer:
                 prompts = self.get_tokenized_prompts(classnames, template)
                 self.model.init_text_features(prompts)
 
-            print("Generating and saving zero-shot confidence for initialization...")
-            self.save_zeroshot_confidence()
+            # print("Generating and saving zero-shot confidence for initialization...")
+            # self.save_zeroshot_confidence()
 
 
         elif cfg.linear_probing:
@@ -216,23 +216,9 @@ class Trainer:
             self.tuner = None
             self.head = self.model.head
             
-            # 使用多个templates初始化text_features
-            if hasattr(cfg, 'use_multiple_templates') and cfg.use_multiple_templates:
-                templates = [
-                    "a photo of a {}.",
-                    "a photo of the {}.",
-                    "a {} image",
-                    "the {} photo",
-                    "this is a photo of {}",
-                    "a cropped photo of {}",
-                    "a good photo of {}",
-                    "a photo of one {}"
-                ]
-                self.model.init_text_features_with_templates(classnames, templates, self.device)
-            else:
-                template = "a photo of a {}."
-                prompts = self.get_tokenized_prompts(classnames, template)
-                self.model.init_text_features(prompts)
+            template = "a photo of a {}."
+            prompts = self.get_tokenized_prompts(classnames, template)
+            self.model.init_text_features(prompts)
 
 
         elif cfg.backbone.startswith("CLIP") or cfg.backbone.startswith("ViT"):
@@ -380,10 +366,10 @@ class Trainer:
             print("Loading zero-shot confidence for initialization...")
             
             # 加载之前保存的zero-shot置信度
-            zeroshot_dir = "zeroshot_confidence/"
-            # zeroshot_dir = "confidence/"
-            zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}_zeroshot_confidence.pth")
-            # zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}.pth")
+            zeroshot_dir = "confidence"
+            zeroshot_dir = "confidence_mp/"
+            # zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}_zeroshot_confidence.pth")
+            zeroshot_path = os.path.join(zeroshot_dir, f"{cfg.dataset}.pth")
 
             if os.path.exists(zeroshot_path):
                 zeroshot_confidence = torch.load(zeroshot_path, map_location=self.device)
@@ -600,6 +586,7 @@ class Trainer:
                     
         # Create save directory and path
         save_dir = "confidence"
+        save_dir = "confidence_mp"
         os.makedirs(save_dir, exist_ok=True)
         save_path = os.path.join(save_dir, f"{self.cfg.dataset}.pth")
         
