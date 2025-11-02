@@ -123,40 +123,6 @@ class LinearProbingCLIP(nn.Module):
         text_features = self.encode_text(prompts)
         text_features = F.normalize(text_features, dim=-1)
         self.text_features = text_features
-
-    @torch.no_grad()
-    def init_text_features_with_templates(self, classnames, templates, device):
-        """
-        使用多个template初始化text_features
-        
-        Args:
-            classnames: 类别名称列表
-            templates: template列表
-            device: 设备
-        """
-        all_text_features = []
-        
-        for template in templates:
-            # 为每个template生成prompts
-            prompts = []
-            for c in classnames:
-                prompt = template.format(c.replace("_", " "))
-                prompts.append(prompt)
-            
-            prompts = torch.cat([clip.tokenize(p) for p in prompts])
-            prompts = prompts.to(device)
-            
-            # 获取该template对应的text_features
-            text_features = self.encode_text(prompts)
-            text_features = F.normalize(text_features, dim=-1)
-            all_text_features.append(text_features)
-        
-        # 对所有template的text_features进行平均
-        averaged_text_features = torch.stack(all_text_features).mean(dim=0)
-        # 再次进行L2归一化
-        averaged_text_features = F.normalize(averaged_text_features, dim=-1)
-        
-        self.text_features = averaged_text_features
     
     def forward(self, image):
         image_features = self.encode_image(image)
