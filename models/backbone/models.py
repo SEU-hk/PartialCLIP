@@ -1,4 +1,5 @@
 import copy
+from clip import clip
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -85,7 +86,7 @@ class ZeroShotCLIP(nn.Module):
         # 再次进行L2归一化
         averaged_text_features = F.normalize(averaged_text_features, dim=-1)
         
-        self.text_features = averaged_text_feature
+        self.text_features = averaged_text_features
 
     def forward(self, image):
         image_features = self.encode_image(image)
